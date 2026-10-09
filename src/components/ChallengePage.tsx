@@ -73,6 +73,18 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [difficultyFilter, setDifficultyFilter] = useState('All');
 
+  // Category normalizer to merge all steganography variations
+  const normalizeCategory = (cat: string) => {
+    const lower = cat.toLowerCase();
+    if (lower.includes('stego')) return 'Steganography';
+    if (lower.includes('crypto')) return 'Cryptography';
+    if (lower.includes('forensic')) return 'Forensics';
+    if (lower.includes('reverse')) return 'Reverse Engineering';
+    if (lower.includes('web')) return 'Web Exploitation';
+    if (lower.includes('osint')) return 'OSINT';
+    return cat;
+  };
+
   // Fetch challenges from database or JSON file
   useEffect(() => {
     const fetchChallenges = async () => {
@@ -83,9 +95,21 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
           const data = await response.json();
           // Strip correct_flag before storing — flag validation is server-side only
           const sanitized: Question[] = (data.challenges as any[]).map(
-            ({ correct_flag: _omit, ...rest }) => rest as Question
+            ({ correct_flag: _omit, ...rest }) => ({
+              ...rest,
+              category: normalizeCategory(rest.category || '')
+            }) as Question
           );
           setAvailableChallenges(sanitized);
+
+          // If a challenge is currently active, sync its media/audio properties
+          if (sanitized.length > 0) {
+            setQuestion(prev => {
+              if (!prev) return sanitized[0];
+              const match = sanitized.find(q => q.id === prev.id);
+              return match || prev;
+            });
+          }
           return;
         }
       } catch (err) {
@@ -115,6 +139,7 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
             const filePath = c.file_path || '';
             const isImg = filePath.match(/\.(png|jpe?g|webp|gif)$/i);
             const isVid = filePath.match(/\.(mp4|webm|mov)$/i);
+            const isAudio = filePath.match(/\.(wav|mp3|ogg)$/i) || c.id.includes('broken-broadcast');
             const isLnk = filePath.startsWith('http');
             return {
               id: c.id,
@@ -123,10 +148,16 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
               file_name: c.file_name || '',
               file_path: filePath,
               hints: c.hints || [],
-              category: c.category,
+              category: normalizeCategory(c.category || ''),
               difficulty: c.difficulty,
-              media_type: c.media_type || (isImg ? 'image' : isVid ? 'video' : isLnk ? 'link' : 'file'),
-              media_url: c.media_url || filePath
+              media_type: c.media_type || (isImg ? 'image' : isVid ? 'video' : isAudio ? 'audio' : isLnk ? 'link' : 'file'),
+              media_url: c.media_url || filePath,
+              audio_files: c.id.includes('broken-broadcast') ? [
+                { name: 'Receiver Channel 1 (piece_1.wav)', url: '/challenges/media/radio_pieces/piece_1.wav' },
+                { name: 'Receiver Channel 2 (piece_2.wav)', url: '/challenges/media/radio_pieces/piece_2.wav' },
+                { name: 'Receiver Channel 3 (piece_3.wav)', url: '/challenges/media/radio_pieces/piece_3.wav' },
+                { name: 'Receiver Channel 4 (piece_4.wav)', url: '/challenges/media/radio_pieces/piece_4.wav' }
+              ] : undefined
             };
           });
           setAvailableChallenges(transformedChallenges);
