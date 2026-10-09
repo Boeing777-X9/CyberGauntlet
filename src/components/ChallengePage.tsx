@@ -109,16 +109,24 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
         }
 
         if (challenges && challenges.length > 0) {
-          const transformedChallenges: Question[] = challenges.map((c: any) => ({
-            id: c.id,
-            title: c.title,
-            description: c.description,
-            file_name: c.file_name || '',
-            file_path: c.file_path || '',
-            hints: c.hints || [],
-            category: c.category,
-            difficulty: c.difficulty
-          }));
+          const transformedChallenges: Question[] = challenges.map((c: any) => {
+            const filePath = c.file_path || '';
+            const isImg = filePath.match(/\.(png|jpe?g|webp|gif)$/i);
+            const isVid = filePath.match(/\.(mp4|webm|mov)$/i);
+            const isLnk = filePath.startsWith('http');
+            return {
+              id: c.id,
+              title: c.title,
+              description: c.description,
+              file_name: c.file_name || '',
+              file_path: filePath,
+              hints: c.hints || [],
+              category: c.category,
+              difficulty: c.difficulty,
+              media_type: c.media_type || (isImg ? 'image' : isVid ? 'video' : isLnk ? 'link' : 'file'),
+              media_url: c.media_url || filePath
+            };
+          });
           setAvailableChallenges(transformedChallenges);
         }
       } catch (err) {
@@ -884,12 +892,14 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
                             }`}
                           >
                             <div className="flex items-center justify-between w-full mb-2">
-                              <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${
-                                q.difficulty === 'Beginner' ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30' :
-                                q.difficulty === 'Intermediate' ? 'bg-amber-950/60 text-amber-400 border border-amber-500/30' :
-                                'bg-rose-950/60 text-rose-400 border border-rose-500/30'
+                              <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${
+                                q.difficulty === 'Medium' || q.difficulty === 'Intermediate'
+                                  ? 'bg-orange-950/60 text-orange-400 border-orange-500/50 shadow-[0_0_8px_rgba(255,106,0,0.3)]'
+                                  : q.difficulty === 'Hard' || q.difficulty === 'Advanced'
+                                  ? 'bg-rose-950/60 text-rose-400 border-rose-500/50 shadow-[0_0_8px_rgba(255,0,85,0.3)]'
+                                  : 'bg-cyan-950/60 text-cyan-400 border-cyan-500/50 shadow-[0_0_8px_rgba(0,229,255,0.3)]'
                               }`}>
-                                {q.difficulty}
+                                {q.difficulty === 'Intermediate' ? 'Medium' : q.difficulty}
                               </span>
                               {isCompleted ? (
                                 <span className="flex items-center gap-1 text-[11px] text-green-400 font-bold bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/30">
@@ -986,6 +996,20 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
           <TerminalBox title={`challenge_${question?.id}.sh`}>
             <div className="space-y-4 text-green-300">
               <div>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <span className="text-xs px-2.5 py-1 bg-black/60 border border-green-500/40 text-green-400 font-bold rounded">
+                    {question?.category}
+                  </span>
+                  <span className={`text-xs px-2.5 py-1 font-bold rounded border ${
+                    question?.difficulty === 'Medium' || question?.difficulty === 'Intermediate'
+                      ? 'bg-orange-950/40 border-orange-500 text-orange-400 shadow-[0_0_10px_rgba(255,106,0,0.3)]'
+                      : question?.difficulty === 'Hard' || question?.difficulty === 'Advanced'
+                      ? 'bg-rose-950/40 border-rose-500 text-rose-400'
+                      : 'bg-emerald-950/40 border-emerald-500 text-emerald-400'
+                  }`}>
+                    {question?.difficulty === 'Intermediate' ? 'Medium' : question?.difficulty}
+                  </span>
+                </div>
                 <h2 className="text-2xl text-green-400 mb-2">{question?.title}</h2>
                 <p className="text-green-300/80 leading-relaxed">{question?.description}</p>
               </div>
