@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { LogOut, Plus, Edit2, Trash2, ToggleLeft, ToggleRight, CheckCircle, XCircle, RefreshCw, Shield, BookOpen, ClipboardList, BarChart3, ChevronDown, ChevronUp, Eye, EyeOff, KeyRound, Users, Trophy, Activity, Radio, Clock } from 'lucide-react';
 import { supabase, isSupabaseConfigured, LeaderboardEntry } from '../lib/supabase';
 import { GlitchText } from './GlitchText';
@@ -79,6 +79,46 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [showFlag, setShowFlag] = useState(false);
   const [processing, setProcessing] = useState<string|null>(null);
+
+  const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({});
+
+  const toggleTeamExpanded = (teamId: string) => {
+    setExpandedTeams(prev => ({
+      ...prev,
+      [teamId]: !prev[teamId]
+    }));
+  };
+
+  const groupedTeamActivity = useMemo(() => {
+    const map = new Map<string, LiveSession[]>();
+    liveSessions.forEach(sess => {
+      if (!map.has(sess.team_id)) {
+        map.set(sess.team_id, []);
+      }
+      map.get(sess.team_id)!.push(sess);
+    });
+
+    return Array.from(map.entries()).map(([team_id, sessions]) => {
+      sessions.sort((a, b) => new Date(b.last_activity).getTime() - new Date(a.last_activity).getTime());
+      const latest = sessions[0];
+      const totalWrong = sessions.reduce((acc, s) => acc + (s.wrong_attempt_count || 0), 0);
+      const totalHints = sessions.reduce((acc, s) => acc + (s.hint_reveal_count || 0), 0);
+      const completedCount = sessions.filter(s => s.is_completed).length;
+
+      return {
+        team_id,
+        latest_challenge_id: latest.challenge_id,
+        latest_status: latest.is_completed,
+        latest_time_spent: latest.time_spent || 0,
+        latest_ping: latest.last_activity,
+        total_wrong_attempts: totalWrong,
+        total_hints_used: totalHints,
+        total_challenges_visited: sessions.length,
+        total_challenges_completed: completedCount,
+        sessions
+      };
+    }).sort((a, b) => new Date(b.latest_ping).getTime() - new Date(a.latest_ping).getTime());
+  }, [liveSessions]);
 
   const flash = (text: string, ok = true) => {
     setMsg({ text, ok });
@@ -251,7 +291,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         {/* Tabs */}
         <div className="flex border-b border-green-500/20 bg-black/20 px-2 overflow-x-auto">
           {tabBtn('overview', 'Overview', BarChart3)}
-          {tabBtn('live_monitor', `Live Activity (${liveSessions.length})`, Radio)}
+          {tabBtn('live_monitor', `Live Activity (${groupedTeamActivity.length} Teams)`, Radio)}
           {tabBtn('leaderboard', `Leaderboard (${leaderboardEntries.length})`, Trophy)}
           {tabBtn('challenges', 'Challenges', BookOpen)}
           {tabBtn('add', editId ? 'Edit Challenge' : 'Add Challenge', Plus)}
@@ -571,53 +611,111 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-ping"/>
-                  <h2 className="text-green-400 font-bold">Live Team Activity Monitor</h2>
+                  <h2 className="text-green-400 font-bold">Live Team Activity Monitor ({groupedTeamActivity.length} Teams Online)</h2>
                 </div>
                 <button onClick={fetchAll} className="flex items-center gap-1 text-xs border border-green-500/40 text-green-400 px-3 py-1.5 rounded hover:bg-green-500/10">
                   <RefreshCw className="w-3 h-3"/>Refresh
                 </button>
               </div>
 
-              {liveSessions.length === 0 ? (
+              {groupedTeamActivity.length === 0 ? (
                 <p className="text-green-600 text-center py-8">No team activity recorded yet. Teams will appear as they pick and solve challenges.</p>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto space-y-3">
                   <table className="w-full text-left text-xs text-green-300">
                     <thead>
                       <tr className="border-b border-green-500/30 text-green-400 font-bold uppercase tracking-wider">
-                        <th className="py-2 px-3">Team Name</th>
-                        <th className="py-2 px-3">Current Challenge</th>
-                        <th className="py-2 px-3 text-center">Status</th>
-                        <th className="py-2 px-3 text-right">Time Spent</th>
-                        <th className="py-2 px-3 text-center">Wrong Guesses</th>
-                        <th className="py-2 px-3 text-center">Hints Used</th>
-                        <th className="py-2 px-3 text-right">Last Ping</th>
+                        <th className="py-2.5 px-3">Team Name</th>
+                        <th className="py-2.5 px-3">Latest / Active Challenge</th>
+                        <th className="py-2.5 px-3 text-center">Status</th>
+                        <th className="py-2.5 px-3 text-right">Time on Current</th>
+                        <th className="py-2.5 px-3 text-center">Total Wrong</th>
+                        <th className="py-2.5 px-3 text-center">Total Hints</th>
+                        <th className="py-2.5 px-3 text-right">Last Ping</th>
+                        <th className="py-2.5 px-3 text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-green-500/10">
-                      {liveSessions.map(sess => (
-                        <tr key={sess.id} className="hover:bg-green-500/5">
-                          <td className="py-3 px-3 font-bold text-white">{sess.team_id}</td>
-                          <td className="py-3 px-3 font-mono text-green-400">{sess.challenge_id}</td>
-                          <td className="py-3 px-3 text-center">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${sess.is_completed ? 'bg-green-500/20 text-green-400 border border-green-500/40' : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40'}`}>
-                              {sess.is_completed ? '✓ SOLVED' : '● IN PROGRESS'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-3 text-right font-mono text-green-400">
-                            {Math.floor(sess.time_spent / 60)}m {sess.time_spent % 60}s
-                          </td>
-                          <td className="py-3 px-3 text-center font-mono text-red-400">
-                            {sess.wrong_attempt_count}
-                          </td>
-                          <td className="py-3 px-3 text-center font-mono text-amber-400">
-                            {sess.hint_reveal_count}
-                          </td>
-                          <td className="py-3 px-3 text-right text-green-500/60 font-mono">
-                            {new Date(sess.last_activity).toLocaleTimeString()}
-                          </td>
-                        </tr>
-                      ))}
+                      {groupedTeamActivity.map(team => {
+                        const isExpanded = !!expandedTeams[team.team_id];
+                        return (
+                          <React.Fragment key={team.team_id}>
+                            <tr className={`hover:bg-green-500/5 transition-colors ${isExpanded ? 'bg-green-950/20' : ''}`}>
+                              <td className="py-3 px-3 font-bold text-white flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                                <span>{team.team_id}</span>
+                              </td>
+                              <td className="py-3 px-3 font-mono text-green-400">
+                                {team.latest_challenge_id}
+                              </td>
+                              <td className="py-3 px-3 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${team.latest_status ? 'bg-green-500/20 text-green-400 border border-green-500/40' : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40'}`}>
+                                  {team.latest_status ? '✓ SOLVED' : '● IN PROGRESS'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-right font-mono text-green-400">
+                                {Math.floor(team.latest_time_spent / 60)}m {team.latest_time_spent % 60}s
+                              </td>
+                              <td className="py-3 px-3 text-center">
+                                <span className={`px-2 py-0.5 rounded font-mono text-xs ${team.total_wrong_attempts > 0 ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'text-green-500/60'}`}>
+                                  {team.total_wrong_attempts}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-center">
+                                <span className={`px-2 py-0.5 rounded font-mono text-xs ${team.total_hints_used > 0 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-green-500/60'}`}>
+                                  {team.total_hints_used}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-right text-green-400/70 font-mono">
+                                {new Date(team.latest_ping).toLocaleTimeString()}
+                              </td>
+                              <td className="py-3 px-3 text-center">
+                                <button
+                                  onClick={() => toggleTeamExpanded(team.team_id)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/30 transition-all cursor-pointer"
+                                >
+                                  {isExpanded ? <ChevronUp className="w-3.5 h-3.5"/> : <ChevronDown className="w-3.5 h-3.5"/>}
+                                  <span>{isExpanded ? 'Hide' : 'View'} ({team.sessions.length})</span>
+                                </button>
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan={8} className="p-0 border-b border-green-500/30">
+                                  <div className="bg-black/80 p-4 border-l-2 border-green-500 m-2 rounded space-y-2">
+                                    <div className="flex items-center justify-between pb-2 border-b border-green-500/20 text-xs">
+                                      <span className="text-green-400 font-bold uppercase tracking-wider">
+                                        Active & Visited Challenges History for {team.team_id}
+                                      </span>
+                                      <span className="text-green-300/60 font-mono">
+                                        Solved: {team.total_challenges_completed} / {team.total_challenges_visited} Attempted
+                                      </span>
+                                    </div>
+                                    <div className="grid gap-2">
+                                      {team.sessions.map((s, idx) => (
+                                        <div key={idx} className="flex flex-wrap items-center justify-between p-2.5 bg-zinc-950/90 rounded border border-green-500/20 text-xs font-mono">
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-green-300 font-bold">{s.challenge_id}</span>
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${s.is_completed ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'}`}>
+                                              {s.is_completed ? 'SOLVED' : 'IN PROGRESS'}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-4 text-green-400/80">
+                                            <span>Time: <strong className="text-green-300">{Math.floor((s.time_spent || 0) / 60)}m {(s.time_spent || 0) % 60}s</strong></span>
+                                            <span>Wrong Guesses: <strong className={s.wrong_attempt_count > 0 ? 'text-red-400' : 'text-green-300'}>{s.wrong_attempt_count}</strong></span>
+                                            <span>Hints Used: <strong className={s.hint_reveal_count > 0 ? 'text-amber-400' : 'text-green-300'}>{s.hint_reveal_count}</strong></span>
+                                            <span className="text-green-500/60 text-[11px]">{new Date(s.last_activity).toLocaleTimeString()}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

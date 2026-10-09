@@ -57,6 +57,7 @@ INSERT INTO public.allowed_emails (email, team_name, leader_name, team_id) VALUE
   ('abhay701734@gmail.com', '777', 'Abhay Pratap Singh', 'CH-4F8371'),
   ('abc@gmail.com', 'Diamonds', 'Aditya', 'CH-8B37F1'),
   ('sarthakagrawal6244@gmail.com', 'Sa', 'Syrkn', 'CH-8E01F5'),
+  ('alpha.sarthak6244@gmail.com', 'Sa', 'Sarthak', 'CH-8E01F5'),
   ('anvi.2427020706@muj.manipal.edu', 'Miniatures', 'Anvi Tiwari', 'CH-06E36D')
 ON CONFLICT (email) DO UPDATE SET 
   team_name = EXCLUDED.team_name,
