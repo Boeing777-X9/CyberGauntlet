@@ -169,9 +169,11 @@ ON CONFLICT (id) DO UPDATE SET
 CREATE TABLE IF NOT EXISTS public.challenge_validations (
   challenge_id text PRIMARY KEY,
   correct_flag_hash text NOT NULL,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
+  created_at timestamptz DEFAULT now()
 );
+
+-- Safely add updated_at column if missing
+ALTER TABLE public.challenge_validations ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
 
 ALTER TABLE public.challenge_validations ENABLE ROW LEVEL SECURITY;
 
@@ -184,8 +186,7 @@ INSERT INTO public.challenge_validations (challenge_id, correct_flag_hash)
 SELECT id, encode(digest(correct_flag, 'sha256'), 'hex')
 FROM public.challenges
 ON CONFLICT (challenge_id) DO UPDATE SET
-  correct_flag_hash = EXCLUDED.correct_flag_hash,
-  updated_at = now();
+  correct_flag_hash = EXCLUDED.correct_flag_hash;
 
 -- 3. Advanced submit_flag RPC Function
 -- Handles:
@@ -272,13 +273,17 @@ BEGIN
     v_points := 100;
   END IF;
 
-  -- Insert solve into leaderboard (no hint mark deduction)
-  INSERT INTO public.leaderboard (
-    team_name, question_id, time_spent, attempts, hints_used, points, category, difficulty, idempotency_key, completed_at
-  ) VALUES (
-    p_team_name, p_challenge_id, p_time_spent, p_attempts, 0, v_points, v_challenge.category, v_challenge.difficulty, p_idempotency_key, now()
-  )
-  ON CONFLICT (team_name, question_id) DO NOTHING;
+  -- Insert solve into leaderboard if not already solved (no hint mark deduction)
+  IF NOT EXISTS (
+    SELECT 1 FROM public.leaderboard
+    WHERE team_name = p_team_name AND question_id = p_challenge_id
+  ) THEN
+    INSERT INTO public.leaderboard (
+      team_name, question_id, time_spent, attempts, hints_used, points, category, difficulty, idempotency_key, completed_at
+    ) VALUES (
+      p_team_name, p_challenge_id, p_time_spent, p_attempts, 0, v_points, v_challenge.category, v_challenge.difficulty, p_idempotency_key, now()
+    );
+  END IF;
 
   -- Update challenge_sessions status
   UPDATE public.challenge_sessions
