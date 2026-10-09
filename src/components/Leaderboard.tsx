@@ -71,18 +71,42 @@ export function Leaderboard({ currentTeamName, questionFilter }: LeaderboardProp
         query = query.eq('question_id', questionFilter);
       }
 
-      const { data, error } = await query;
+      const [{ data, error }, { data: participantsData }] = await Promise.all([
+        query,
+        supabase.from('participants').select('team_name, leader_name').order('team_name', { ascending: true })
+      ]);
 
       if (error) throw error;
 
       setEntries(data || []);
 
-      // Calculate team aggregate scores
-      if (data) {
-        const teamMap = new Map<string, TeamScore>();
+      const teamMap = new Map<string, TeamScore>();
 
+      // 1. Seed with all registered teams if viewing overall leaderboard
+      if (!questionFilter && participantsData) {
+        participantsData.forEach((p) => {
+          const raw = (p.team_name || '').trim();
+          if (!raw) return;
+          teamMap.set(raw.toLowerCase(), {
+            team_name: raw,
+            total_time: 0,
+            total_attempts: 0,
+            challenges_completed: 0,
+            last_completed: '',
+            best_time: 0,
+            total_points: 0,
+          });
+        });
+      }
+
+      // 2. Aggregate actual solved challenges
+      if (data) {
         data.forEach((entry) => {
-          const existing = teamMap.get(entry.team_name);
+          const raw = (entry.team_name || '').trim();
+          if (!raw) return;
+          const key = raw.toLowerCase();
+
+          const existing = teamMap.get(key);
           if (existing) {
             existing.total_time += entry.time_spent;
             existing.total_attempts += entry.attempts;
@@ -91,12 +115,12 @@ export function Leaderboard({ currentTeamName, questionFilter }: LeaderboardProp
             if (entry.completed_at && entry.completed_at > existing.last_completed) {
               existing.last_completed = entry.completed_at;
             }
-            if (!existing.best_time || entry.time_spent < existing.best_time) {
+            if (!existing.best_time || (entry.time_spent > 0 && entry.time_spent < existing.best_time)) {
               existing.best_time = entry.time_spent;
             }
           } else {
-            teamMap.set(entry.team_name, {
-              team_name: entry.team_name,
+            teamMap.set(key, {
+              team_name: raw,
               total_time: entry.time_spent,
               total_attempts: entry.attempts,
               challenges_completed: 1,
@@ -106,43 +130,48 @@ export function Leaderboard({ currentTeamName, questionFilter }: LeaderboardProp
             });
           }
         });
+      }
 
-        const scores = Array.from(teamMap.values());
-        setTeamScores(scores);
+      const scores = Array.from(teamMap.values());
+      setTeamScores(scores);
 
-        // Calculate rank changes for visual indicators
-        const newRanks = new Map<string, number>();
-        const newRankChanges = new Map<string, RankChange>();
+      // Calculate rank changes for visual indicators
+      const newRanks = new Map<string, number>();
+      const newRankChanges = new Map<string, RankChange>();
 
-        // Sort scores locally for rank calculation (same logic as sortedTeams)
-        const localSorted = [...scores].sort((a, b) => b.total_points - a.total_points);
+      // Sort scores locally for rank calculation
+      const localSorted = [...scores].sort((a, b) => {
+        if (b.total_points !== a.total_points) return b.total_points - a.total_points;
+        if (b.challenges_completed !== a.challenges_completed) return b.challenges_completed - a.challenges_completed;
+        if (a.total_time !== b.total_time && a.challenges_completed > 0) return a.total_time - b.total_time;
+        return a.team_name.localeCompare(b.team_name);
+      });
 
-        localSorted.forEach((team, idx) => {
-          const newRank = idx + 1;
-          newRanks.set(team.team_name, newRank);
+      localSorted.forEach((team, idx) => {
+        const newRank = idx + 1;
+        newRanks.set(team.team_name, newRank);
 
-          const prevRank = previousRanks.get(team.team_name);
-          if (prevRank !== undefined) {
-            if (newRank < prevRank) {
-              newRankChanges.set(team.team_name, 'up');
-            } else if (newRank > prevRank) {
-              newRankChanges.set(team.team_name, 'down');
-            } else {
-              newRankChanges.set(team.team_name, 'same');
-            }
+        const prevRank = previousRanks.get(team.team_name);
+        if (prevRank !== undefined) {
+          if (newRank < prevRank) {
+            newRankChanges.set(team.team_name, 'up');
+          } else if (newRank > prevRank) {
+            newRankChanges.set(team.team_name, 'down');
           } else {
             newRankChanges.set(team.team_name, 'same');
           }
-        });
+        } else {
+          newRankChanges.set(team.team_name, 'same');
+        }
+      });
 
-        setPreviousRanks(newRanks);
-        setRankChanges(newRankChanges);
+      setPreviousRanks(newRanks);
+      setRankChanges(newRankChanges);
 
-        // Clear rank changes after 3 seconds to stop animations
-        setTimeout(() => {
-          setRankChanges(new Map());
-        }, 3000);
-      }
+      // Clear rank changes after 3 seconds to stop animations
+      setTimeout(() => {
+        setRankChanges(new Map());
+      }, 3000);
 
       setLoading(false);
     } catch (err) {
@@ -175,8 +204,17 @@ export function Leaderboard({ currentTeamName, questionFilter }: LeaderboardProp
       // Sort by total time (asc)
       return a.total_time - b.total_time;
     } else {
-      // Sort by total points (desc)
-      return b.total_points - a.total_points;
+      // Sort by total points (desc), then challenges_completed (desc), then time (asc)
+      if (b.total_points !== a.total_points) {
+        return b.total_points - a.total_points;
+      }
+      if (b.challenges_completed !== a.challenges_completed) {
+        return b.challenges_completed - a.challenges_completed;
+      }
+      if (a.total_time !== b.total_time && a.challenges_completed > 0) {
+        return a.total_time - b.total_time;
+      }
+      return a.team_name.localeCompare(b.team_name);
     }
   });
 

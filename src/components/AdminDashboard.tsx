@@ -307,6 +307,123 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     }).sort((a, b) => new Date(b.latest_ping).getTime() - new Date(a.latest_ping).getTime());
   }, [liveSessions]);
 
+  interface TeamLeaderboardScore {
+    team_name: string;
+    leader_name?: string;
+    email?: string;
+    college?: string;
+    total_points: number;
+    challenges_completed: number;
+    total_time_spent: number;
+    total_attempts: number;
+    last_solved_at: string | null;
+    solved_entries: LeaderboardEntry[];
+  }
+
+  const [expandedLbTeams, setExpandedLbTeams] = useState<Record<string, boolean>>({});
+  const [lbSearch, setLbSearch] = useState<string>('');
+  const [lbFilter, setLbFilter] = useState<'all' | 'scored' | 'zero'>('all');
+
+  const toggleLbTeamExpanded = (teamName: string) => {
+    setExpandedLbTeams(prev => ({
+      ...prev,
+      [teamName]: !prev[teamName]
+    }));
+  };
+
+  const teamStandings = useMemo(() => {
+    const map = new Map<string, TeamLeaderboardScore>();
+
+    // 1. Initialize from all registered participants (ensures 0-point teams are included)
+    participants.forEach(p => {
+      const nameKey = (p.team_name || p.team_id || p.email || '').trim();
+      if (!nameKey) return;
+      map.set(nameKey.toLowerCase(), {
+        team_name: p.team_name || p.email,
+        leader_name: p.leader_name || '',
+        email: p.email || '',
+        college: p.college || '',
+        total_points: 0,
+        challenges_completed: 0,
+        total_time_spent: 0,
+        total_attempts: 0,
+        last_solved_at: null,
+        solved_entries: []
+      });
+    });
+
+    // 2. Aggregate all actual challenge solves from leaderboard table
+    leaderboardEntries.forEach(entry => {
+      const rawName = (entry.team_name || '').trim();
+      if (!rawName) return;
+      const key = rawName.toLowerCase();
+
+      let team = map.get(key);
+      if (!team) {
+        team = {
+          team_name: rawName,
+          leader_name: '',
+          email: '',
+          college: '',
+          total_points: 0,
+          challenges_completed: 0,
+          total_time_spent: 0,
+          total_attempts: 0,
+          last_solved_at: null,
+          solved_entries: []
+        };
+        map.set(key, team);
+      }
+
+      team.total_points += (entry.points || 100);
+      team.challenges_completed += 1;
+      team.total_time_spent += (entry.time_spent || 0);
+      team.total_attempts += (entry.attempts || 1);
+      team.solved_entries.push(entry);
+
+      if (entry.completed_at) {
+        if (!team.last_solved_at || new Date(entry.completed_at) > new Date(team.last_solved_at)) {
+          team.last_solved_at = entry.completed_at;
+        }
+      }
+    });
+
+    const result = Array.from(map.values());
+    result.sort((a, b) => {
+      if (b.total_points !== a.total_points) {
+        return b.total_points - a.total_points;
+      }
+      if (b.challenges_completed !== a.challenges_completed) {
+        return b.challenges_completed - a.challenges_completed;
+      }
+      if (a.total_time_spent !== b.total_time_spent && a.challenges_completed > 0) {
+        return a.total_time_spent - b.total_time_spent;
+      }
+      if (a.last_solved_at && b.last_solved_at) {
+        return new Date(a.last_solved_at).getTime() - new Date(b.last_solved_at).getTime();
+      }
+      return a.team_name.localeCompare(b.team_name);
+    });
+
+    return result;
+  }, [participants, leaderboardEntries]);
+
+  const filteredTeamStandings = useMemo(() => {
+    return teamStandings.filter(t => {
+      if (lbFilter === 'scored' && t.total_points === 0) return false;
+      if (lbFilter === 'zero' && t.total_points > 0) return false;
+      if (lbSearch.trim()) {
+        const query = lbSearch.toLowerCase();
+        return (
+          t.team_name.toLowerCase().includes(query) ||
+          (t.leader_name && t.leader_name.toLowerCase().includes(query)) ||
+          (t.email && t.email.toLowerCase().includes(query))
+        );
+      }
+      return true;
+    });
+  }, [teamStandings, lbFilter, lbSearch]);
+
   const flash = (text: string, ok = true) => {
     setMsg({ text, ok });
     setTimeout(() => setMsg(null), 4000);
@@ -669,7 +786,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           {tabBtn('overview', 'Overview', BarChart3)}
           {tabBtn('event_control', 'Event Control & Timer', Clock)}
           {tabBtn('live_monitor', `Live Activity (${groupedTeamActivity.length} Teams)`, Radio)}
-          {tabBtn('leaderboard', `Leaderboard (${leaderboardEntries.length})`, Trophy)}
+          {tabBtn('leaderboard', `Leaderboard (${teamStandings.length} Teams)`, Trophy)}
           {tabBtn('challenges', 'Challenges', BookOpen)}
           {tabBtn('add', editId ? 'Edit Challenge' : 'Add Challenge', Plus)}
           {tabBtn('submissions', `Submissions${stats.pendingSubmissions > 0 ? ` (${stats.pendingSubmissions})` : ''}`, ClipboardList)}
@@ -1138,50 +1255,270 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
           {/* LEADERBOARD TAB */}
           {tab === 'leaderboard' && (
-            <TerminalBox title="admin_leaderboard.sh">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-green-400 font-bold">Admin Real-Time Scoreboard ({leaderboardEntries.length} Solves)</h2>
-                <button onClick={fetchAll} className="flex items-center gap-1 text-xs border border-green-500/40 text-green-400 px-3 py-1.5 rounded hover:bg-green-500/10">
-                  <RefreshCw className="w-3 h-3"/>Refresh
-                </button>
-              </div>
+            <TerminalBox title="official_team_scoreboard.sh">
+              <div className="space-y-4">
+                {/* Header & KPI Summary */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-green-500/20">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Trophy className="w-5 h-5 text-yellow-400" />
+                      <h2 className="text-green-400 font-bold text-lg">Official Tournament Leaderboard</h2>
+                      <span className="text-xs px-2 py-0.5 rounded border border-green-500/40 bg-green-500/10 text-green-300 font-mono">
+                        {teamStandings.length} Teams Registered
+                      </span>
+                    </div>
+                    <p className="text-xs text-green-300/60 mt-1">
+                      Aggregated total scores and solve speeds across all teams. Teams with 0 points are included in the official standings.
+                    </p>
+                  </div>
 
-              {leaderboardEntries.length === 0 ? (
-                <p className="text-green-600 text-center py-8">No solves recorded yet. Scores will appear as flags are captured.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs text-green-300">
-                    <thead>
-                      <tr className="border-b border-green-500/30 text-green-400 font-bold uppercase tracking-wider">
-                        <th className="py-2 px-3">Rank</th>
-                        <th className="py-2 px-3">Team Name</th>
-                        <th className="py-2 px-3">Challenge</th>
-                        <th className="py-2 px-3 text-right">Points</th>
-                        <th className="py-2 px-3 text-right">Time Spent</th>
-                        <th className="py-2 px-3 text-center">Attempts</th>
-                        <th className="py-2 px-3 text-right">Solved At</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-green-500/10">
-                      {leaderboardEntries.map((entry, idx) => (
-                        <tr key={entry.id || idx} className="hover:bg-green-500/5">
-                          <td className="py-3 px-3 font-mono font-bold text-green-500">#{idx + 1}</td>
-                          <td className="py-3 px-3 font-bold text-white">{entry.team_name}</td>
-                          <td className="py-3 px-3 font-mono text-green-400">{entry.question_id}</td>
-                          <td className="py-3 px-3 text-right font-bold text-green-400">+{entry.points || 100}</td>
-                          <td className="py-3 px-3 text-right font-mono text-green-300">
-                            {Math.floor(entry.time_spent / 60)}m {entry.time_spent % 60}s
-                          </td>
-                          <td className="py-3 px-3 text-center font-mono">{entry.attempts}</td>
-                          <td className="py-3 px-3 text-right text-green-500/60 font-mono">
-                            {entry.completed_at ? new Date(entry.completed_at).toLocaleTimeString() : '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="flex items-center gap-2">
+                    <button onClick={fetchAll} className="flex items-center gap-1.5 text-xs border border-green-500/40 text-green-400 px-3 py-2 rounded hover:bg-green-500/10 transition-colors cursor-pointer">
+                      <RefreshCw className="w-3.5 h-3.5"/>Refresh Scores
+                    </button>
+                  </div>
                 </div>
-              )}
+
+                {/* Scoreboard Metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-black/50 border border-green-500/20 p-3 rounded">
+                    <div className="text-xs text-green-600 uppercase font-bold">Total Teams</div>
+                    <div className="text-xl font-bold font-mono text-green-300">{teamStandings.length}</div>
+                  </div>
+                  <div className="bg-black/50 border border-green-500/20 p-3 rounded">
+                    <div className="text-xs text-green-600 uppercase font-bold">Teams on Scoreboard</div>
+                    <div className="text-xl font-bold font-mono text-green-400">
+                      {teamStandings.filter(t => t.total_points > 0).length}
+                    </div>
+                  </div>
+                  <div className="bg-black/50 border border-green-500/20 p-3 rounded">
+                    <div className="text-xs text-green-600 uppercase font-bold">Total Flags Captured</div>
+                    <div className="text-xl font-bold font-mono text-yellow-400">{leaderboardEntries.length}</div>
+                  </div>
+                  <div className="bg-black/50 border border-green-500/20 p-3 rounded">
+                    <div className="text-xs text-green-600 uppercase font-bold">Top Score</div>
+                    <div className="text-xl font-bold font-mono text-yellow-300">
+                      {teamStandings[0]?.total_points || 0} pts
+                    </div>
+                  </div>
+                </div>
+
+                {/* Search & Filter Bar */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <input
+                      type="text"
+                      placeholder="Search team or leader..."
+                      value={lbSearch}
+                      onChange={(e) => setLbSearch(e.target.value)}
+                      className="bg-black/60 border border-green-500/30 rounded px-3 py-1.5 text-xs text-green-300 placeholder-green-800 focus:border-green-500 focus:outline-none w-full sm:w-64"
+                    />
+                    {lbSearch && (
+                      <button onClick={() => setLbSearch('')} className="text-xs text-green-600 hover:text-green-400 cursor-pointer">
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 self-start sm:self-auto text-xs">
+                    <button
+                      onClick={() => setLbFilter('all')}
+                      className={`px-2.5 py-1 rounded font-bold transition-all cursor-pointer ${
+                        lbFilter === 'all'
+                          ? 'bg-green-500 text-black'
+                          : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                      }`}
+                    >
+                      All ({teamStandings.length})
+                    </button>
+                    <button
+                      onClick={() => setLbFilter('scored')}
+                      className={`px-2.5 py-1 rounded font-bold transition-all cursor-pointer ${
+                        lbFilter === 'scored'
+                          ? 'bg-green-500 text-black'
+                          : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                      }`}
+                    >
+                      Scored ({teamStandings.filter(t => t.total_points > 0).length})
+                    </button>
+                    <button
+                      onClick={() => setLbFilter('zero')}
+                      className={`px-2.5 py-1 rounded font-bold transition-all cursor-pointer ${
+                        lbFilter === 'zero'
+                          ? 'bg-green-500 text-black'
+                          : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                      }`}
+                    >
+                      Zero Score ({teamStandings.filter(t => t.total_points === 0).length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Scoreboard Table */}
+                {filteredTeamStandings.length === 0 ? (
+                  <p className="text-green-600 text-center py-8">No teams match your search or filter.</p>
+                ) : (
+                  <div className="overflow-x-auto border border-green-500/20 rounded-lg">
+                    <table className="w-full text-left text-xs text-green-300">
+                      <thead>
+                        <tr className="bg-black/60 border-b border-green-500/30 text-green-400 font-bold uppercase tracking-wider">
+                          <th className="py-3 px-3 text-center w-16">Rank</th>
+                          <th className="py-3 px-4">Team Name</th>
+                          <th className="py-3 px-3 text-right">Total Score</th>
+                          <th className="py-3 px-3 text-center">Progress</th>
+                          <th className="py-3 px-3 text-right">Total Time</th>
+                          <th className="py-3 px-3 text-center">Attempts</th>
+                          <th className="py-3 px-3 text-right">Last Solve</th>
+                          <th className="py-3 px-3 text-center w-24">Breakdown</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-green-500/10">
+                        {filteredTeamStandings.map((team, idx) => {
+                          const isExpanded = !!expandedLbTeams[team.team_name];
+                          const hasSolves = team.challenges_completed > 0;
+                          const rank = idx + 1;
+
+                          return (
+                            <React.Fragment key={team.team_name}>
+                              <tr className={`transition-colors ${
+                                rank === 1 && hasSolves ? 'bg-yellow-500/10 hover:bg-yellow-500/15' :
+                                rank === 2 && hasSolves ? 'bg-zinc-400/10 hover:bg-zinc-400/15' :
+                                rank === 3 && hasSolves ? 'bg-amber-700/10 hover:bg-amber-700/15' :
+                                'hover:bg-green-500/5'
+                              }`}>
+                                <td className="py-3 px-3 text-center font-mono font-bold">
+                                  {rank === 1 && hasSolves ? (
+                                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/40">
+                                      🥇 1
+                                    </span>
+                                  ) : rank === 2 && hasSolves ? (
+                                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-zinc-400/20 text-zinc-200 border border-zinc-400/40">
+                                      🥈 2
+                                    </span>
+                                  ) : rank === 3 && hasSolves ? (
+                                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-700/20 text-amber-300 border border-amber-600/40">
+                                      🥉 3
+                                    </span>
+                                  ) : (
+                                    <span className="text-green-600 font-bold">#{rank}</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4">
+                                  <div className="font-bold text-white text-sm flex items-center gap-2">
+                                    <span>{team.team_name}</span>
+                                    {team.total_points > 0 && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                                    )}
+                                  </div>
+                                  {(team.leader_name || team.email) && (
+                                    <div className="text-[11px] text-green-500/70 truncate max-w-xs">
+                                      {team.leader_name && <span className="text-green-400/90">{team.leader_name}</span>}
+                                      {team.leader_name && team.email && ' · '}
+                                      {team.email && <span className="opacity-70">{team.email}</span>}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="py-3 px-3 text-right">
+                                  {team.total_points > 0 ? (
+                                    <span className="inline-block px-2.5 py-1 rounded bg-green-500/15 border border-green-500/40 font-mono font-black text-sm text-green-300 shadow-[0_0_10px_rgba(34,197,94,0.15)]">
+                                      +{team.total_points} pts
+                                    </span>
+                                  ) : (
+                                    <span className="font-mono text-green-700 font-bold">0 pts</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-3 text-center">
+                                  <div className="font-mono font-bold text-xs text-green-400">
+                                    {team.challenges_completed} / {challenges.length || 16}
+                                  </div>
+                                  <div className="w-16 h-1.5 bg-black/60 rounded-full mx-auto mt-1 overflow-hidden border border-green-500/20">
+                                    <div
+                                      className="h-full bg-green-500 rounded-full"
+                                      style={{
+                                        width: `${Math.min(100, (team.challenges_completed / (challenges.length || 16)) * 100)}%`
+                                      }}
+                                    />
+                                  </div>
+                                </td>
+                                <td className="py-3 px-3 text-right font-mono text-xs">
+                                  {team.total_time_spent > 0 ? (
+                                    <span className="text-green-300">
+                                      {Math.floor(team.total_time_spent / 60)}m {team.total_time_spent % 60}s
+                                    </span>
+                                  ) : (
+                                    <span className="text-green-800">-</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-3 text-center font-mono text-xs">
+                                  {team.total_attempts > 0 ? (
+                                    <span className="text-green-300">{team.total_attempts}</span>
+                                  ) : (
+                                    <span className="text-green-800">-</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-3 text-right font-mono text-xs text-green-500/70">
+                                  {team.last_solved_at ? (
+                                    new Date(team.last_solved_at).toLocaleTimeString()
+                                  ) : (
+                                    <span className="text-green-800">-</span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-3 text-center">
+                                  {hasSolves ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleLbTeamExpanded(team.team_name)}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 text-[11px] font-bold transition-all cursor-pointer"
+                                    >
+                                      <span>{team.challenges_completed} solves</span>
+                                      {isExpanded ? <ChevronUp className="w-3 h-3"/> : <ChevronDown className="w-3 h-3"/>}
+                                    </button>
+                                  ) : (
+                                    <span className="text-green-800 text-xs">-</span>
+                                  )}
+                                </td>
+                              </tr>
+
+                              {/* Expanded Challenge Solves Detail Drawer */}
+                              {isExpanded && hasSolves && (
+                                <tr className="bg-black/80">
+                                  <td colSpan={8} className="p-3 border-t border-b border-green-500/20">
+                                    <div className="bg-black/90 border border-green-500/30 rounded p-3 space-y-2">
+                                      <div className="text-[11px] font-bold text-green-400 uppercase tracking-wider flex items-center gap-2">
+                                        <Trophy className="w-3.5 h-3.5 text-yellow-400"/>
+                                        <span>Challenges Solved by {team.team_name}:</span>
+                                      </div>
+                                      <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+                                        {team.solved_entries.map((entry, sIdx) => (
+                                          <div key={entry.id || sIdx} className="bg-zinc-950/80 border border-green-500/20 rounded p-2 text-xs flex flex-col justify-between">
+                                            <div className="flex items-center justify-between gap-2">
+                                              <span className="font-mono font-bold text-green-300 truncate" title={entry.question_id}>
+                                                {entry.question_id}
+                                              </span>
+                                              <span className="font-mono font-bold text-green-400 bg-green-500/15 px-1.5 py-0.5 rounded border border-green-500/30">
+                                                +{entry.points || 100}
+                                              </span>
+                                            </div>
+                                            <div className="flex items-center justify-between text-[11px] text-green-600 mt-2">
+                                              <span>⏱ {Math.floor(entry.time_spent / 60)}m {entry.time_spent % 60}s</span>
+                                              <span>{entry.attempts} attempt(s)</span>
+                                              <span>{entry.completed_at ? new Date(entry.completed_at).toLocaleTimeString() : ''}</span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </TerminalBox>
           )}
         </div>
