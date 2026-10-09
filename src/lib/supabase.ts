@@ -145,15 +145,32 @@ export const saveTournamentEvent = async (
 
   // 1. Try public.events table (if exists)
   try {
-    await supabase.from('events').upsert({
-      id: updatedEvent.id.length === 36 ? updatedEvent.id : undefined,
-      event_name: updatedEvent.event_name,
-      status: updatedEvent.status,
-      start_date: updatedEvent.start_date,
-      end_date: updatedEvent.end_date,
-      paused_at: updatedEvent.paused_at,
-      updated_at: updatedEvent.updated_at
-    });
+    const { data: existingRows } = await supabase.from('events').select('id');
+    if (existingRows && existingRows.length > 0) {
+      // Update ALL existing rows so none can ever remain in stale 'active' status
+      const ids = existingRows.map((r: any) => r.id);
+      await supabase.from('events').update({
+        event_name: updatedEvent.event_name,
+        status: updatedEvent.status,
+        start_date: updatedEvent.start_date,
+        end_date: updatedEvent.end_date,
+        paused_at: updatedEvent.paused_at,
+        updated_at: updatedEvent.updated_at
+      }).in('id', ids);
+      updatedEvent.id = existingRows[0].id;
+    } else {
+      const { data: inserted } = await supabase.from('events').insert([{
+        event_name: updatedEvent.event_name,
+        status: updatedEvent.status,
+        start_date: updatedEvent.start_date,
+        end_date: updatedEvent.end_date,
+        paused_at: updatedEvent.paused_at,
+        updated_at: updatedEvent.updated_at
+      }]).select().single();
+      if (inserted) {
+        updatedEvent.id = inserted.id;
+      }
+    }
   } catch (e) {
     // Ignore if table missing; fallback below guarantees zero downtime
   }
@@ -203,11 +220,11 @@ export const subscribeToEvents = (callback: (event: EventConfig) => void) => {
 
   const fetchCurrentEvent = async () => {
     try {
-      // 1. Try public.events table first
+      // 1. Try public.events table first (sort by updated_at to get latest change)
       const { data: eventData, error: eventErr } = await supabase
         .from('events')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -251,6 +268,11 @@ export const subscribeToEvents = (callback: (event: EventConfig) => void) => {
 
   fetchCurrentEvent();
 
+  // Active polling every 3 seconds guarantees instant synchronization across all devices even without WebSockets
+  const pollTimer = setInterval(() => {
+    fetchCurrentEvent();
+  }, 3000);
+
   // Listen to Realtime Broadcast and Postgres changes
   const channel = supabase.channel('cybergauntlet_tournament_realtime');
   channel
@@ -285,6 +307,7 @@ export const subscribeToEvents = (callback: (event: EventConfig) => void) => {
     .subscribe();
 
   return () => {
+    clearInterval(pollTimer);
     channel.unsubscribe();
   };
 };

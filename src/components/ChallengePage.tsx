@@ -470,8 +470,8 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
       } else {
         let availableQuestions = availableChallenges.filter(q => !(completed ? JSON.parse(completed) : []).includes(q.id));
 
-        // Filter by active event if one exists
-        if (currentEvent) {
+        // Filter by active event if one exists and specifies challenges
+        if (currentEvent && currentEvent.active_challenges && currentEvent.active_challenges.length > 0) {
           availableQuestions = availableQuestions.filter(q => currentEvent.active_challenges.includes(q.id));
         }
 
@@ -576,6 +576,40 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
     if (isEventLocked) {
       alert(lockState.reason || 'Submissions are currently locked.');
       return;
+    }
+
+    // Strict Live Server Check to prevent stale tab submissions
+    if (isSupabaseConfigured) {
+      try {
+        const { data: liveEvent } = await supabase
+          .from('events')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (liveEvent) {
+          const nowMs = Date.now();
+          const endMs = new Date(liveEvent.end_date).getTime();
+          if (liveEvent.status === 'draft') {
+            setCurrentEvent(liveEvent as Event);
+            alert('Competition has not started yet. Flag submissions are locked.');
+            return;
+          }
+          if (liveEvent.status === 'paused') {
+            setCurrentEvent(liveEvent as Event);
+            alert('Competition is currently PAUSED by Admin. Submissions are temporarily frozen.');
+            return;
+          }
+          if (liveEvent.status === 'ended' || endMs <= nowMs) {
+            setCurrentEvent(liveEvent as Event);
+            alert('Competition has CONCLUDED. All submissions are locked.');
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Live server lock check failed, proceeding with local check', err);
+      }
     }
 
     // Normalize flag prefix (e.g. QUEST{...} -> quest{...}, FLAG{...} -> flag{...})
