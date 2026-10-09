@@ -60,7 +60,14 @@ function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/auth" element={<Login />} />
       <Route path="/docs" element={<DocsPage />} />
-      <Route path="/leader" element={<Leaderboard/>}/>
+      <Route
+        path="/leader"
+        element={
+          <ProtectedRoute adminOnly>
+            <Leaderboard />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Protected dashboard */}
       <Route

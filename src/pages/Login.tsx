@@ -87,7 +87,38 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const handleResetRequest = async () => {
+    if (!resetEmail || !resetEmail.includes('@')) {
+      setResetMsg('Please provide a valid email address.');
+      return;
+    }
+    setResetSubmitting(true);
+    setResetMsg(null);
+    try {
+      const { error } = await supabase.from('password_reset_requests').insert({
+        email: resetEmail.trim().toLowerCase(),
+      });
+      if (error) {
+        setResetMsg('Failed to submit request: ' + error.message);
+      } else {
+        setResetMsg('Request submitted! An admin will review and reset your password.');
+        setTimeout(() => {
+          setShowResetModal(false);
+          setResetMsg(null);
+        }, 3000);
+      }
+    } catch (err: any) {
+      setResetMsg('Error submitting request: ' + (err.message || 'Unknown error'));
+    } finally {
+      setResetSubmitting(false);
+    }
+  };
 
   // --- EXISTING LOGIC PRESERVED ---
   const login = async () => {
@@ -110,6 +141,22 @@ export default function Login() {
         }
         return;
       }
+
+      // Check if logged in user is an Admin
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: adminData } = await supabase
+          .from('admins')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (adminData) {
+          navigate("/admin", { replace: true });
+          return;
+        }
+      }
+
       navigate("/challenges", { replace: true });
     } catch (err) {
       alert('An unexpected error occurred during login');
@@ -131,13 +178,15 @@ export default function Login() {
         password,
       });
       if (error) {
-        if (error.message.includes('Anonymous sign-ins')) {
+        if (error.message.includes('Access Denied') || error.message.includes('qualified')) {
+          alert('ACCESS DENIED: Your email is not registered among Round 1 qualifiers.');
+        } else if (error.message.includes('Anonymous sign-ins')) {
           alert('Authentication service not properly configured. Please contact support.');
         } else {
           alert(error.message);
         }
       } else {
-        alert('📩 Check your email for verification');
+        alert('Registration successful! You may now initiate your session.');
       }
     } catch (err) {
       alert('An unexpected error occurred during signup');
@@ -257,7 +306,76 @@ export default function Login() {
               >
                 REGISTER NEW OPERATIVE
               </button>
+
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetEmail(email);
+                    setShowResetModal(true);
+                  }}
+                  className="text-xs text-green-500/70 hover:text-green-400 hover:underline transition-colors"
+                >
+                  Forgot your password? Request Admin Reset
+                </button>
+              </div>
             </div>
+
+            {/* Forgot Password Request Modal */}
+            {showResetModal && (
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-black border border-green-500/50 rounded-lg p-6 max-w-sm w-full shadow-2xl relative text-left">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Shield className="w-5 h-5 text-green-400" />
+                    <h3 className="text-base font-bold text-white uppercase tracking-wider">
+                      Request Password Reset
+                    </h3>
+                  </div>
+                  <p className="text-xs text-green-300/70 mb-4 leading-relaxed">
+                    Submit your registered email. An admin will verify your identity from Round 1 qualifiers and reset your access code.
+                  </p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[11px] text-green-400 block mb-1 uppercase font-bold">
+                        Registered Email
+                      </label>
+                      <input
+                        type="email"
+                        placeholder="agent@cybergauntlet.io"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        className="w-full px-3 py-2 bg-black border border-green-500/40 rounded text-green-300 text-sm focus:outline-none focus:border-green-400"
+                      />
+                    </div>
+                    {resetMsg && (
+                      <p className={`text-xs ${resetMsg.includes('submitted') ? 'text-green-400' : 'text-red-400'}`}>
+                        {resetMsg}
+                      </p>
+                    )}
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={handleResetRequest}
+                        disabled={resetSubmitting}
+                        className="flex-1 py-2 bg-green-600 hover:bg-green-500 text-black font-bold text-xs uppercase rounded transition-all disabled:opacity-50"
+                      >
+                        {resetSubmitting ? 'Submitting...' : 'Submit Request'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowResetModal(false);
+                          setResetMsg(null);
+                        }}
+                        className="px-4 py-2 border border-green-500/30 text-green-400 text-xs uppercase rounded hover:bg-green-950/40 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Footer */}
             <div className="mt-8 pt-4 border-t border-green-500/20 text-center">

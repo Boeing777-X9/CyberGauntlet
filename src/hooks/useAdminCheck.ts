@@ -29,14 +29,27 @@ export function useAdminCheck(): AdminCheckResult {
 
     (async () => {
       try {
-        const { data, error } = await supabase
+        // 1. Check dedicated admins table
+        const { data: adminData } = await supabase
+          .from('admins')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (adminData && !cancelled) {
+          setIsAdmin(true);
+          return;
+        }
+
+        // 2. Fallback check profiles table for backward compatibility
+        const { data: profileData } = await supabase
           .from('profiles')
           .select('role')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (!cancelled) {
-          setIsAdmin(!error && data?.role === 'admin');
+          setIsAdmin(profileData?.role === 'admin');
         }
       } catch {
         if (!cancelled) setIsAdmin(false);

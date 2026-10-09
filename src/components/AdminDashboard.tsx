@@ -1,11 +1,44 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { LogOut, Plus, Edit2, Trash2, ToggleLeft, ToggleRight, CheckCircle, XCircle, RefreshCw, Shield, BookOpen, ClipboardList, BarChart3, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { LogOut, Plus, Edit2, Trash2, ToggleLeft, ToggleRight, CheckCircle, XCircle, RefreshCw, Shield, BookOpen, ClipboardList, BarChart3, ChevronDown, ChevronUp, Eye, EyeOff, KeyRound, Users, Trophy, Activity, Radio, Clock } from 'lucide-react';
+import { supabase, isSupabaseConfigured, LeaderboardEntry } from '../lib/supabase';
 import { GlitchText } from './GlitchText';
 import { TerminalBox } from './TerminalBox';
 
 interface AdminDashboardProps { onLogout: () => void; }
-type Tab = 'overview' | 'challenges' | 'add' | 'submissions';
+type Tab = 'overview' | 'challenges' | 'add' | 'submissions' | 'reset_requests' | 'participants' | 'live_monitor' | 'leaderboard';
+
+interface LiveSession {
+  id: string;
+  team_id: string;
+  challenge_id: string;
+  wrong_attempt_count: number;
+  hint_reveal_count: number;
+  time_spent: number;
+  is_completed: boolean;
+  last_activity: string;
+}
+
+interface ResetRequest {
+  id: string;
+  email: string;
+  team_name?: string;
+  status: 'pending' | 'resolved' | 'rejected';
+  admin_notes?: string;
+  created_at: string;
+}
+
+interface Participant {
+  id: string;
+  team_id: string;
+  team_name: string;
+  leader_name: string;
+  email: string;
+  phone?: string;
+  college?: string;
+  round_1_score: number;
+  round_1_level: number;
+  status: string;
+}
 
 interface Challenge {
   id: string; title: string; description: string; category: string;
@@ -34,6 +67,10 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [tab, setTab] = useState<Tab>('overview');
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [resetRequests, setResetRequests] = useState<ResetRequest[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
+  const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>([]);
   const [stats, setStats] = useState<Stats>({ totalChallenges:0, activeChallenges:0, pendingSubmissions:0, totalLeaderboard:0 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,15 +89,23 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     if (!isSupabaseConfigured) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [cRes, sRes, lRes] = await Promise.all([
+      const [cRes, sRes, lRes, rRes, pRes, sessRes, lbFullRes] = await Promise.all([
         supabase.from('challenges').select('id,title,description,category,difficulty,hints,file_name,file_path,is_active,created_at').order('created_at', { ascending: false }),
         supabase.from('challenge_submissions').select('id,title,description,category,difficulty,status,created_at,hints').order('created_at', { ascending: false }),
         supabase.from('leaderboard').select('id', { count: 'exact', head: true }).not('completed_at','is',null),
+        supabase.from('password_reset_requests').select('*').order('created_at', { ascending: false }),
+        supabase.from('participants').select('*').order('team_name', { ascending: true }),
+        supabase.from('challenge_sessions').select('*').order('last_activity', { ascending: false }),
+        supabase.from('leaderboard').select('*').order('completed_at', { ascending: false }),
       ]);
       const cData = cRes.data || [];
       const sData = sRes.data || [];
       setChallenges(cData);
       setSubmissions(sData);
+      setResetRequests(rRes.data || []);
+      setParticipants(pRes.data || []);
+      setLiveSessions(sessRes.data || []);
+      setLeaderboardEntries(lbFullRes.data || []);
       setStats({
         totalChallenges: cData.length,
         activeChallenges: cData.filter((c: Challenge) => c.is_active).length,
@@ -204,11 +249,15 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         )}
 
         {/* Tabs */}
-        <div className="flex border-b border-green-500/20 bg-black/20 px-2">
+        <div className="flex border-b border-green-500/20 bg-black/20 px-2 overflow-x-auto">
           {tabBtn('overview', 'Overview', BarChart3)}
+          {tabBtn('live_monitor', `Live Activity (${liveSessions.length})`, Radio)}
+          {tabBtn('leaderboard', `Leaderboard (${leaderboardEntries.length})`, Trophy)}
           {tabBtn('challenges', 'Challenges', BookOpen)}
           {tabBtn('add', editId ? 'Edit Challenge' : 'Add Challenge', Plus)}
           {tabBtn('submissions', `Submissions${stats.pendingSubmissions > 0 ? ` (${stats.pendingSubmissions})` : ''}`, ClipboardList)}
+          {tabBtn('reset_requests', `Reset Requests${resetRequests.filter(r => r.status === 'pending').length > 0 ? ` (${resetRequests.filter(r => r.status === 'pending').length})` : ''}`, KeyRound)}
+          {tabBtn('participants', `Participants (${participants.length})`, Users)}
         </div>
 
         <div className="p-6 max-w-6xl mx-auto">
@@ -407,6 +456,219 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </TerminalBox>
+          )}
+
+          {/* RESET REQUESTS TAB */}
+          {tab === 'reset_requests' && (
+            <TerminalBox title="password_resets.sh">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-green-400 font-bold">Password Reset Requests ({resetRequests.length})</h2>
+                <button onClick={fetchAll} className="flex items-center gap-1 text-xs border border-green-500/40 text-green-400 px-3 py-1.5 rounded hover:bg-green-500/10">
+                  <RefreshCw className="w-3 h-3"/>Refresh
+                </button>
+              </div>
+
+              {resetRequests.length === 0 ? (
+                <p className="text-green-600 text-center py-8">No password reset requests pending.</p>
+              ) : (
+                <div className="space-y-3">
+                  {resetRequests.map(r => (
+                    <div key={r.id} className="border border-green-500/20 rounded p-4 bg-black/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-white text-sm">{r.email}</span>
+                          <span className={`text-[10px] uppercase px-2 py-0.5 rounded font-bold ${r.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40' : r.status === 'resolved' ? 'bg-green-500/20 text-green-400 border border-green-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'}`}>
+                            {r.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-green-400/70">
+                          Requested: {new Date(r.created_at).toLocaleString()}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {r.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={async () => {
+                                await supabase.from('password_reset_requests').update({ status: 'resolved' }).eq('id', r.id);
+                                flash(`Request for ${r.email} marked as resolved!`);
+                                fetchAll();
+                              }}
+                              className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-black text-xs font-bold rounded transition-all"
+                            >
+                              Mark Resolved
+                            </button>
+                            <button
+                              onClick={async () => {
+                                await supabase.from('password_reset_requests').update({ status: 'rejected' }).eq('id', r.id);
+                                flash(`Request for ${r.email} dismissed.`);
+                                fetchAll();
+                              }}
+                              className="px-3 py-1.5 border border-red-500/50 text-red-400 text-xs rounded hover:bg-red-950/40 transition-all"
+                            >
+                              Dismiss
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TerminalBox>
+          )}
+
+          {/* PARTICIPANTS TAB */}
+          {tab === 'participants' && (
+            <TerminalBox title="qualified_participants.sh">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-green-400 font-bold">Round 1 Qualified Operatives ({participants.length})</h2>
+                <button onClick={fetchAll} className="flex items-center gap-1 text-xs border border-green-500/40 text-green-400 px-3 py-1.5 rounded hover:bg-green-500/10">
+                  <RefreshCw className="w-3 h-3"/>Refresh
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-green-300">
+                  <thead>
+                    <tr className="border-b border-green-500/30 text-green-400 font-bold uppercase tracking-wider">
+                      <th className="py-2 px-3">Team ID</th>
+                      <th className="py-2 px-3">Team Name</th>
+                      <th className="py-2 px-3">Leader</th>
+                      <th className="py-2 px-3">Email</th>
+                      <th className="py-2 px-3">College</th>
+                      <th className="py-2 px-3 text-center">Eligibility</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-green-500/10">
+                    {participants.map(p => (
+                      <tr key={p.id} className="hover:bg-green-500/5">
+                        <td className="py-2.5 px-3 font-mono text-green-400">{p.team_id}</td>
+                        <td className="py-2.5 px-3 font-bold text-white">{p.team_name}</td>
+                        <td className="py-2.5 px-3">{p.leader_name}</td>
+                        <td className="py-2.5 px-3 font-mono text-green-300/80">{p.email}</td>
+                        <td className="py-2.5 px-3 text-green-400/60 max-w-[200px] truncate" title={p.college}>{p.college}</td>
+                        <td className="py-2.5 px-3 text-center">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/20 text-green-400 border border-green-500/30">
+                            ELIGIBLE
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </TerminalBox>
+          )}
+
+          {/* LIVE MONITOR TAB */}
+          {tab === 'live_monitor' && (
+            <TerminalBox title="live_activity_stream.sh">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-ping"/>
+                  <h2 className="text-green-400 font-bold">Live Team Activity Monitor</h2>
+                </div>
+                <button onClick={fetchAll} className="flex items-center gap-1 text-xs border border-green-500/40 text-green-400 px-3 py-1.5 rounded hover:bg-green-500/10">
+                  <RefreshCw className="w-3 h-3"/>Refresh
+                </button>
+              </div>
+
+              {liveSessions.length === 0 ? (
+                <p className="text-green-600 text-center py-8">No team activity recorded yet. Teams will appear as they pick and solve challenges.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-green-300">
+                    <thead>
+                      <tr className="border-b border-green-500/30 text-green-400 font-bold uppercase tracking-wider">
+                        <th className="py-2 px-3">Team Name</th>
+                        <th className="py-2 px-3">Current Challenge</th>
+                        <th className="py-2 px-3 text-center">Status</th>
+                        <th className="py-2 px-3 text-right">Time Spent</th>
+                        <th className="py-2 px-3 text-center">Wrong Guesses</th>
+                        <th className="py-2 px-3 text-center">Hints Used</th>
+                        <th className="py-2 px-3 text-right">Last Ping</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-green-500/10">
+                      {liveSessions.map(sess => (
+                        <tr key={sess.id} className="hover:bg-green-500/5">
+                          <td className="py-3 px-3 font-bold text-white">{sess.team_id}</td>
+                          <td className="py-3 px-3 font-mono text-green-400">{sess.challenge_id}</td>
+                          <td className="py-3 px-3 text-center">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${sess.is_completed ? 'bg-green-500/20 text-green-400 border border-green-500/40' : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40'}`}>
+                              {sess.is_completed ? '✓ SOLVED' : '● IN PROGRESS'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono text-green-400">
+                            {Math.floor(sess.time_spent / 60)}m {sess.time_spent % 60}s
+                          </td>
+                          <td className="py-3 px-3 text-center font-mono text-red-400">
+                            {sess.wrong_attempt_count}
+                          </td>
+                          <td className="py-3 px-3 text-center font-mono text-amber-400">
+                            {sess.hint_reveal_count}
+                          </td>
+                          <td className="py-3 px-3 text-right text-green-500/60 font-mono">
+                            {new Date(sess.last_activity).toLocaleTimeString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </TerminalBox>
+          )}
+
+          {/* LEADERBOARD TAB */}
+          {tab === 'leaderboard' && (
+            <TerminalBox title="admin_leaderboard.sh">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-green-400 font-bold">Admin Real-Time Scoreboard ({leaderboardEntries.length} Solves)</h2>
+                <button onClick={fetchAll} className="flex items-center gap-1 text-xs border border-green-500/40 text-green-400 px-3 py-1.5 rounded hover:bg-green-500/10">
+                  <RefreshCw className="w-3 h-3"/>Refresh
+                </button>
+              </div>
+
+              {leaderboardEntries.length === 0 ? (
+                <p className="text-green-600 text-center py-8">No solves recorded yet. Scores will appear as flags are captured.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-green-300">
+                    <thead>
+                      <tr className="border-b border-green-500/30 text-green-400 font-bold uppercase tracking-wider">
+                        <th className="py-2 px-3">Rank</th>
+                        <th className="py-2 px-3">Team Name</th>
+                        <th className="py-2 px-3">Challenge</th>
+                        <th className="py-2 px-3 text-right">Points</th>
+                        <th className="py-2 px-3 text-right">Time Spent</th>
+                        <th className="py-2 px-3 text-center">Attempts</th>
+                        <th className="py-2 px-3 text-right">Solved At</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-green-500/10">
+                      {leaderboardEntries.map((entry, idx) => (
+                        <tr key={entry.id || idx} className="hover:bg-green-500/5">
+                          <td className="py-3 px-3 font-mono font-bold text-green-500">#{idx + 1}</td>
+                          <td className="py-3 px-3 font-bold text-white">{entry.team_name}</td>
+                          <td className="py-3 px-3 font-mono text-green-400">{entry.question_id}</td>
+                          <td className="py-3 px-3 text-right font-bold text-green-400">+{entry.points || 100}</td>
+                          <td className="py-3 px-3 text-right font-mono text-green-300">
+                            {Math.floor(entry.time_spent / 60)}m {entry.time_spent % 60}s
+                          </td>
+                          <td className="py-3 px-3 text-center font-mono">{entry.attempts}</td>
+                          <td className="py-3 px-3 text-right text-green-500/60 font-mono">
+                            {entry.completed_at ? new Date(entry.completed_at).toLocaleTimeString() : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </TerminalBox>
