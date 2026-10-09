@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Terminal, CheckCircle, XCircle, Clock, Trophy, LogOut, ChevronDown, ChevronUp, Users, MessageSquare, Plus, Edit, Trash2, Radio } from 'lucide-react';
+import { Download, Terminal, CheckCircle, XCircle, Clock, Trophy, LogOut, ChevronDown, ChevronUp, Users, MessageSquare, Plus, Edit, Trash2, Radio, ExternalLink, FileText, Archive, Music, Image as ImageIcon } from 'lucide-react';
 import { GlitchText } from './GlitchText';
 import { TerminalBox } from './TerminalBox';
 import { Leaderboard } from './Leaderboard';
@@ -28,6 +28,179 @@ interface Event {
   end_date: string;
   active_challenges: string[];
   created_at: string;
+}
+
+export interface AttachmentItem {
+  name: string;
+  url: string;
+  type: 'file' | 'link' | 'audio' | 'image' | 'archive';
+  description?: string;
+}
+
+export const getChallengeAttachments = (q?: Question | null): AttachmentItem[] => {
+  if (!q) return [];
+
+  if (q.id === 'q5-invisible-ink') {
+    return [
+      { name: 'research_report.txt', url: '/challenges/media/research_report.txt', type: 'file', description: 'Recovered Project LUMEN-4 research report' },
+      { name: 'L4_recovery.zip', url: '/challenges/media/L4_recovery.zip', type: 'archive', description: 'Password-protected recovery archive' },
+      { name: 'lumen4_files.zip', url: '/challenges/media/lumen4_files.zip', type: 'archive', description: 'Complete LUMEN-4 artifact package' },
+    ];
+  }
+
+  if (q.id === 'q6-ghost-host') {
+    return [
+      { name: 'internal_it_memo.docx', url: '/challenges/media/internal_it_memo.docx', type: 'file', description: 'Internal IT security memo document' },
+    ];
+  }
+
+  if (q.id === 'q4-snackbot-3000') {
+    return [
+      { name: 'snackbot3000.zip', url: '/challenges/media/snackbot3000.zip', type: 'archive', description: 'Complete SnackBot 3000 bundle' },
+      { name: 'vending', url: '/challenges/media/q4_snackbot/vending', type: 'file', description: 'Vending machine program binary' },
+      { name: 'maintenance_log.txt', url: '/challenges/media/q4_snackbot/maintenance_log.txt', type: 'file', description: 'Vending maintenance log' },
+      { name: 'run.sh', url: '/challenges/media/q4_snackbot/run.sh', type: 'file', description: 'Execution runner script' },
+    ];
+  }
+
+  if (q.id === 'q3-broken-broadcast') {
+    return [
+      { name: 'radio_pieces.zip', url: '/challenges/media/radio_pieces.zip', type: 'archive', description: 'All 4 broadcast fragments bundle' },
+      { name: 'piece_1.wav', url: '/challenges/media/radio_pieces/piece_1.wav', type: 'audio', description: 'Broadcast receiver fragment 1' },
+      { name: 'piece_2.wav', url: '/challenges/media/radio_pieces/piece_2.wav', type: 'audio', description: 'Broadcast receiver fragment 2' },
+      { name: 'piece_3.wav', url: '/challenges/media/radio_pieces/piece_3.wav', type: 'audio', description: 'Broadcast receiver fragment 3' },
+      { name: 'piece_4.wav', url: '/challenges/media/radio_pieces/piece_4.wav', type: 'audio', description: 'Broadcast receiver fragment 4' },
+    ];
+  }
+
+  if (q.id === 'q1-photograph-remembers') {
+    return [
+      { name: 'photo.jpg', url: '/challenges/media/photo.jpg', type: 'image', description: 'Recovered old photograph' },
+    ];
+  }
+
+  if (q.id === 'q2-quiet-pixels') {
+    return [
+      { name: 'quiet.png', url: '/challenges/media/quiet.png', type: 'image', description: 'Seized dusk landmark photograph' },
+    ];
+  }
+
+  if (q.id === 'c1-domes-mirage') {
+    return [
+      { name: 'stego_1 (1).png', url: '/challenges/media/stego_1 (1).png', type: 'image', description: 'Mirage surveillance image' },
+    ];
+  }
+
+  if (q.id === 'c2-ghs-frequency') {
+    return [
+      { name: 'stego_challenge (1).jpeg', url: '/challenges/media/stego_challenge (1).jpeg', type: 'image', description: 'GHS frequency image artifact' },
+    ];
+  }
+
+  if (q.id === 'c3-structural-trace') {
+    return [
+      { name: 'stego_challenge4.mp4', url: '/challenges/media/stego_challenge4.mp4', type: 'file', description: 'Suspicious admin terminal video recording' },
+    ];
+  }
+
+  if (q.id === 'c4-crests-secret') {
+    return [
+      { name: 'stego_challenge3.jpeg', url: '/challenges/media/stego_challenge3.jpeg', type: 'image', description: 'Official club crest image' },
+    ];
+  }
+
+  if (q.id === 'c5-corrupted-drive') {
+    return [
+      { name: 'corrupted_patient_records.dat', url: '/challenges/media/corrupted_patient_records.dat', type: 'file', description: 'Recovered raw patient clinic data file' },
+    ];
+  }
+
+  if (q.id === 'c6-pre-production-panic') {
+    return [
+      { name: 'Savings Agency Staging Portal', url: 'https://savingsbank-neon.vercel.app/', type: 'link', description: 'Live CSA staging environment' },
+    ];
+  }
+
+  if (q.id === 'q10-instagram-x-mystery') {
+    return [
+      { name: 'Target Instagram Profile', url: 'https://www.instagram.com/anushka1262005?stkn=amZ3ZGdpODlpaDRp', type: 'link', description: 'Primary OSINT investigation starting point' },
+    ];
+  }
+
+  if (q.file_path && q.file_path.trim() !== '') {
+    const isLnk = q.file_path.startsWith('http');
+    return [
+      {
+        name: q.file_name || 'Challenge File',
+        url: q.file_path,
+        type: isLnk ? 'link' : 'file',
+        description: 'Challenge investigation resource'
+      }
+    ];
+  }
+
+  return [];
+};
+
+export const renderDescriptionWithLinks = (text?: string) => {
+  if (!text) return null;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+
+  return (
+    <span className="leading-relaxed whitespace-pre-line text-green-300/90 text-sm sm:text-base">
+      {parts.map((part, index) => {
+        if (part.match(urlRegex)) {
+          return (
+            <a
+              key={index}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-cyan-400 hover:text-cyan-300 font-semibold underline underline-offset-2 break-all transition-colors duration-150 py-0.5 px-2 bg-cyan-950/40 rounded border border-cyan-500/30 hover:border-cyan-400"
+            >
+              <span>{part}</span>
+              <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+            </a>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </span>
+  );
+};
+
+export class ChallengeErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Challenge component error caught:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 bg-red-950/40 border border-red-500 rounded-lg text-red-300 font-mono my-4">
+          <h3 className="text-red-400 font-bold mb-2">⚠ CHALLENGE RECOVERY INTERFACE</h3>
+          <p className="text-sm mb-3">A minor rendering issue occurred in this panel ({this.state.error?.message || 'Recoverable error'}).</p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="px-4 py-2 bg-red-600 hover:bg-red-500 text-black font-bold rounded text-xs transition-all cursor-pointer"
+          >
+            RELOAD CHALLENGE PANEL
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 interface Question {
@@ -337,7 +510,7 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
       hintsUsed: 0
     };
     setChallenge(newLocal);
-    setRevealedHints([0]);
+    setRevealedHints([]);
     setIsRunning(!isDone);
 
     // Record active session for Admin Live Monitor
@@ -1008,178 +1181,194 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
         )} */}
 
         <div id="challenge-workspace" className="space-y-6 scroll-mt-6">
-          <TerminalBox title={`challenge_${question?.id}.sh`}>
-            <div className="space-y-4 text-green-300">
-              <div>
-                <div className="flex flex-wrap items-center gap-2 mb-3">
-                  <span className="text-xs px-2.5 py-1 bg-black/60 border border-green-500/40 text-green-400 font-bold rounded">
-                    {question?.category}
-                  </span>
-                  <span className={`text-xs px-2.5 py-1 font-bold rounded border ${
-                    question?.difficulty === 'Medium' || question?.difficulty === 'Intermediate'
-                      ? 'bg-orange-950/40 border-orange-500 text-orange-400 shadow-[0_0_10px_rgba(255,106,0,0.3)]'
-                      : question?.difficulty === 'Hard' || question?.difficulty === 'Advanced'
-                      ? 'bg-rose-950/40 border-rose-500 text-rose-400'
-                      : 'bg-emerald-950/40 border-emerald-500 text-emerald-400'
-                  }`}>
-                    {question?.difficulty === 'Intermediate' ? 'Medium' : question?.difficulty}
-                  </span>
-                </div>
-                <h2 className="text-2xl text-green-400 mb-2">{question?.title}</h2>
-                <p className="text-green-300/80 leading-relaxed whitespace-pre-line">{question?.description}</p>
-
-                {/* Broadcast Receiver Audio Channels (for Q3 Broken Broadcast) */}
-                {(question?.media_type === 'audio' || (question?.audio_files && question.audio_files.length > 0) || question?.id?.includes('broken-broadcast') || question?.id === 'q3-broken-broadcast') && (
-                  <div className="mt-4 p-4 bg-black/80 border border-green-500/40 rounded-lg shadow-[0_0_20px_rgba(34,197,94,0.15)] space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-green-500/20">
-                      <div className="flex items-center gap-2 text-green-400 text-xs font-bold uppercase tracking-wider">
-                        <Radio className="w-4 h-4 text-green-400 animate-pulse" />
-                        <span>BROADCAST RECEIVER CHANNELS (LISTEN & ANALYZE)</span>
-                      </div>
-                      <span className="text-[10px] text-yellow-400/90 bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/30 font-mono">
-                        4 Radio Pieces
-                      </span>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {(question?.audio_files && question.audio_files.length > 0
-                        ? question.audio_files
-                        : [
-                            { name: 'Receiver Channel 1 (piece_1.wav)', url: '/challenges/media/radio_pieces/piece_1.wav' },
-                            { name: 'Receiver Channel 2 (piece_2.wav)', url: '/challenges/media/radio_pieces/piece_2.wav' },
-                            { name: 'Receiver Channel 3 (piece_3.wav)', url: '/challenges/media/radio_pieces/piece_3.wav' },
-                            { name: 'Receiver Channel 4 (piece_4.wav)', url: '/challenges/media/radio_pieces/piece_4.wav' }
-                          ]
-                      ).map((audio, i) => (
-                        <div key={i} className="p-3 bg-zinc-950/90 border border-green-500/30 rounded-md hover:border-green-400/80 transition-colors">
-                          <p className="text-xs font-mono text-green-300 font-bold mb-2 flex items-center justify-between">
-                            <span>📡 {audio.name}</span>
-                          </p>
-                          <audio controls preload="auto" className="w-full h-8 accent-green-500">
-                            <source src={audio.url} type="audio/wav" />
-                            Your browser does not support HTML5 audio.
-                          </audio>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Only show HINTS section for Hard challenges - no hints in Easy and Medium */}
-              {question?.difficulty?.toLowerCase() === 'hard' && question?.hints && question.hints.length > 0 && (
-                <div className="border-t border-green-500/20 pt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-green-400 font-semibold">HINTS ({revealedHints.length}/{question.hints.length}):</h3>
-                    <span className="text-xs text-yellow-400/90 bg-yellow-400/10 px-2.5 py-0.5 rounded border border-yellow-400/30 font-mono">
-                      No Marks Deducted
+          <ChallengeErrorBoundary>
+            <TerminalBox title={`challenge_${question?.id || 'active'}.sh`}>
+              <div className="space-y-4 text-green-300">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <span className="text-xs px-2.5 py-1 bg-black/60 border border-green-500/40 text-green-400 font-bold rounded">
+                      {question?.category}
+                    </span>
+                    <span className={`text-xs px-2.5 py-1 font-bold rounded border ${
+                      question?.difficulty === 'Medium' || question?.difficulty === 'Intermediate'
+                        ? 'bg-orange-950/40 border-orange-500 text-orange-400 shadow-[0_0_10px_rgba(255,106,0,0.3)]'
+                        : question?.difficulty === 'Hard' || question?.difficulty === 'Advanced'
+                        ? 'bg-rose-950/40 border-rose-500 text-rose-400'
+                        : 'bg-emerald-950/40 border-emerald-500 text-emerald-400'
+                    }`}>
+                      {question?.difficulty === 'Intermediate' ? 'Medium' : question?.difficulty}
                     </span>
                   </div>
-                  {revealedHints.length === 0 ? (
-                    <p className="text-green-300/50 text-xs italic">No hints unlocked yet. Click below to reveal a hint without any penalty.</p>
-                  ) : (
-                    <ul className="space-y-2 text-green-300/80 text-sm">
-                      {revealedHints.map((hintIndex) => (
-                        <li key={hintIndex} className="bg-black/40 border border-green-500/20 p-2.5 rounded text-green-300">
-                          💡 <span className="text-yellow-300/90 font-medium">Hint {hintIndex + 1}:</span> {question.hints[hintIndex]}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {revealedHints.length < question.hints.length && (
-                    <button
-                      onClick={revealNextHint}
-                      className="mt-3 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500 text-yellow-400 px-4 py-2 rounded transition-all text-sm font-semibold flex items-center gap-2 cursor-pointer"
-                    >
-                      <span>🔓 UNLOCK NEXT HINT (Free)</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </TerminalBox>
-
-          {/* Challenge Media & Payload Presentation (matches ctfcsc) */}
-          {question && (question.media_url || (question.file_name && question.file_path)) && (
-            <TerminalBox title="payload_preview.sh">
-              <div className="space-y-4">
-                {/* Image Media Preview */}
-                {question.media_type === 'image' && question.media_url && (
-                  <div className="flex justify-center p-2 bg-black/50 border border-green-500/20 rounded">
-                    <img
-                      src={question.media_url}
-                      alt={question.title}
-                      className="max-h-96 w-auto object-contain rounded border border-green-500/40 shadow-[0_0_20px_rgba(34,197,94,0.15)]"
-                    />
+                  <h2 className="text-2xl text-green-400 mb-3">{question?.title}</h2>
+                  
+                  {/* Formatted description with auto-hyperlinking */}
+                  <div className="leading-relaxed whitespace-pre-line text-green-300/80 mb-4">
+                    {renderDescriptionWithLinks(question?.description)}
                   </div>
-                )}
 
-                {/* Video Media Preview */}
-                {question.media_type === 'video' && question.media_url && (
-                  <div className="flex justify-center p-2 bg-black/50 border border-green-500/20 rounded">
-                    <video
-                      controls
-                      className="max-h-96 w-full max-w-xl rounded border border-green-500/40 shadow-[0_0_20px_rgba(34,197,94,0.15)]"
-                    >
-                      <source src={question.media_url} type="video/mp4" />
-                      Your browser does not support HTML5 video.
-                    </video>
-                  </div>
-                )}
-
-                {/* Audio Players (for Q3 Broken Broadcast radio pieces) */}
-                {(question.media_type === 'audio' || (question.audio_files && question.audio_files.length > 0)) && (
-                  <div className="p-4 bg-black/60 border border-green-500/30 rounded space-y-3">
-                    <div className="flex items-center gap-2 text-green-400 text-xs font-bold uppercase tracking-wider mb-2">
-                      <Radio className="w-4 h-4 text-green-400 animate-pulse" />
-                      BROADCAST RECEIVER CHANNELS (LISTEN & ANALYZE)
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {(question.audio_files || [{ name: question.file_name, url: question.media_url || question.file_path }]).map((audio, i) => (
-                        <div key={i} className="p-3 bg-black/80 border border-green-500/20 rounded">
-                          <p className="text-xs font-mono text-green-300 font-bold mb-1.5 flex items-center justify-between">
-                            <span>📡 {audio.name}</span>
-                          </p>
-                          <audio controls className="w-full h-8 accent-green-500">
-                            <source src={audio.url} type="audio/wav" />
-                            Your browser does not support HTML5 audio.
-                          </audio>
+                  {/* Dedicated Attached Artifacts & Evidence Downloads */}
+                  {(() => {
+                    const attachments = getChallengeAttachments(question);
+                    if (!attachments || attachments.length === 0) return null;
+                    return (
+                      <div className="mt-5 p-4 bg-black/80 border border-green-500/35 rounded-lg shadow-[0_0_20px_rgba(34,197,94,0.12)] space-y-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-green-500/20">
+                          <div className="flex items-center gap-2 text-green-400 text-xs font-bold uppercase tracking-wider">
+                            <Download className="w-4 h-4 text-green-400" />
+                            <span>ATTACHED INVESTIGATION ARTIFACTS ({attachments.length})</span>
+                          </div>
+                          <span className="text-[10px] text-green-400/80 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/30 font-mono">
+                            Direct Download
+                          </span>
                         </div>
-                      ))}
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {attachments.map((item, idx) => (
+                            <div key={idx} className="flex flex-col justify-between p-3 bg-zinc-950/90 border border-green-500/25 rounded-md hover:border-green-400/60 transition-colors">
+                              <div className="mb-2">
+                                <div className="flex items-center gap-2 text-green-300 font-mono text-sm font-bold truncate">
+                                  {item.type === 'archive' && <Archive className="w-4 h-4 text-yellow-400 flex-shrink-0" />}
+                                  {item.type === 'file' && <FileText className="w-4 h-4 text-cyan-400 flex-shrink-0" />}
+                                  {item.type === 'audio' && <Music className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
+                                  {item.type === 'image' && <ImageIcon className="w-4 h-4 text-purple-400 flex-shrink-0" />}
+                                  {item.type === 'link' && <ExternalLink className="w-4 h-4 text-blue-400 flex-shrink-0" />}
+                                  <span className="truncate" title={item.name}>{item.name}</span>
+                                </div>
+                                {item.description && (
+                                  <p className="text-xs text-green-300/60 mt-0.5 line-clamp-1">{item.description}</p>
+                                )}
+                              </div>
+                              <div className="mt-1">
+                                {item.type === 'link' || item.url.startsWith('http') ? (
+                                  <a
+                                    href={item.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 hover:border-blue-400 text-blue-300 text-xs font-bold rounded transition-all cursor-pointer shadow-sm hover:shadow-blue-500/20"
+                                  >
+                                    <span>OPEN TARGET LINK ↗</span>
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </a>
+                                ) : (
+                                  <a
+                                    href={item.url}
+                                    download={item.name}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 bg-green-500/15 hover:bg-green-500/25 border border-green-500/40 hover:border-green-400 text-green-300 hover:text-green-200 text-xs font-bold rounded transition-all cursor-pointer shadow-sm hover:shadow-green-500/20"
+                                  >
+                                    <Download className="w-3.5 h-3.5 text-green-400" />
+                                    <span>DOWNLOAD {item.name}</span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Broadcast Receiver Audio Channels (for Q3 Broken Broadcast) */}
+                  {(question?.media_type === 'audio' || (question?.audio_files && question.audio_files.length > 0) || question?.id?.includes('broken-broadcast') || question?.id === 'q3-broken-broadcast') && (
+                    <div className="mt-5 p-4 bg-black/85 border border-green-500/40 rounded-lg shadow-[0_0_20px_rgba(34,197,94,0.15)] space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-green-500/20">
+                        <div className="flex items-center gap-2 text-green-400 text-xs font-bold uppercase tracking-wider">
+                          <Radio className="w-4 h-4 text-green-400 animate-pulse" />
+                          <span>BROADCAST RECEIVER CHANNELS (LISTEN & ANALYZE)</span>
+                        </div>
+                        <span className="text-[10px] text-yellow-400/90 bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/30 font-mono">
+                          4 Radio Pieces
+                        </span>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {(question?.audio_files && question.audio_files.length > 0
+                          ? question.audio_files
+                          : [
+                              { name: 'Receiver Channel 1 (piece_1.wav)', url: '/challenges/media/radio_pieces/piece_1.wav' },
+                              { name: 'Receiver Channel 2 (piece_2.wav)', url: '/challenges/media/radio_pieces/piece_2.wav' },
+                              { name: 'Receiver Channel 3 (piece_3.wav)', url: '/challenges/media/radio_pieces/piece_3.wav' },
+                              { name: 'Receiver Channel 4 (piece_4.wav)', url: '/challenges/media/radio_pieces/piece_4.wav' }
+                            ]
+                        ).map((audio, i) => (
+                          <div key={i} className="p-3 bg-zinc-950/90 border border-green-500/30 rounded-md hover:border-green-400/80 transition-colors">
+                            <p className="text-xs font-mono text-green-300 font-bold mb-2 flex items-center justify-between">
+                              <span>📡 {audio?.name || `Channel ${i + 1}`}</span>
+                            </p>
+                            <audio controls preload="metadata" className="w-full h-8 accent-green-500">
+                              <source src={audio?.url || ''} type="audio/wav" />
+                              Your browser does not support HTML5 audio.
+                            </audio>
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                  )}
+                </div>
+
+                {/* Only show HINTS section for Hard challenges - no hints in Easy and Medium */}
+                {question?.difficulty?.toLowerCase() === 'hard' && question?.hints && question.hints.length > 0 && (
+                  <div className="border-t border-green-500/20 pt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-green-400 font-semibold">HINTS ({revealedHints.length}/{question.hints.length}):</h3>
+                      <span className="text-xs text-yellow-400/90 bg-yellow-400/10 px-2.5 py-0.5 rounded border border-yellow-400/30 font-mono">
+                        No Marks Deducted
+                      </span>
+                    </div>
+                    {revealedHints.length === 0 ? (
+                      <p className="text-green-300/50 text-xs italic">No hints unlocked yet. Click below to reveal a hint without any penalty.</p>
+                    ) : (
+                      <ul className="space-y-2 text-green-300/80 text-sm">
+                        {revealedHints.map((hintIndex) => (
+                          <li key={hintIndex} className="bg-black/40 border border-green-500/20 p-2.5 rounded text-green-300">
+                            💡 <span className="text-yellow-300/90 font-medium">Hint {hintIndex + 1}:</span> {question.hints[hintIndex]}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {revealedHints.length < question.hints.length && (
+                      <button
+                        onClick={revealNextHint}
+                        className="mt-3 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500 text-yellow-400 px-4 py-2 rounded transition-all text-sm font-semibold flex items-center gap-2 cursor-pointer"
+                      >
+                        <span>🔓 UNLOCK NEXT HINT (Free)</span>
+                      </button>
+                    )}
                   </div>
                 )}
-
-                {/* Download / Access Button */}
-                <div className="text-center pt-2">
-                  {question.media_type === 'link' || question.file_path.startsWith('http') ? (
-                    <a
-                      href={question.file_path}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-3 bg-green-500/10 hover:bg-green-500/20 border-2 border-green-500 text-green-400 px-8 py-3.5 rounded-lg font-bold text-base transition-all hover:shadow-lg hover:shadow-green-500/50 hover:scale-105"
-                    >
-                      <Terminal className="w-5 h-5" />
-                      ACCESS TARGET INTERFACE ↗
-                    </a>
-                  ) : (
-                    <a
-                      href={question.file_path}
-                      download={question.file_name}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-3 bg-green-500/10 hover:bg-green-500/20 border-2 border-green-500 text-green-400 px-8 py-3.5 rounded-lg font-bold text-base transition-all hover:shadow-lg hover:shadow-green-500/50 hover:scale-105"
-                    >
-                      <Download className="w-5 h-5" />
-                      EXTRACT PAYLOAD ({question.file_name})
-                    </a>
-                  )}
-                  <p className="text-green-300/40 text-xs mt-2 font-mono">
-                    {question.file_path}
-                  </p>
-                </div>
               </div>
             </TerminalBox>
-          )}
+
+            {/* Visual Media Presentation (Images & Videos) */}
+            {question && (question.media_type === 'image' || question.media_type === 'video') && question.media_url && (
+              <TerminalBox title="media_viewer.sh">
+                <div className="space-y-4">
+                  {/* Image Media Preview */}
+                  {question.media_type === 'image' && (
+                    <div className="flex justify-center p-2 bg-black/50 border border-green-500/20 rounded">
+                      <img
+                        src={question.media_url}
+                        alt={question.title}
+                        className="max-h-96 w-auto object-contain rounded border border-green-500/40 shadow-[0_0_20px_rgba(34,197,94,0.15)]"
+                      />
+                    </div>
+                  )}
+
+                  {/* Video Media Preview */}
+                  {question.media_type === 'video' && (
+                    <div className="flex justify-center p-2 bg-black/50 border border-green-500/20 rounded">
+                      <video
+                        controls
+                        className="max-h-96 w-full max-w-xl rounded border border-green-500/40 shadow-[0_0_20px_rgba(34,197,94,0.15)]"
+                      >
+                        <source src={question.media_url} type="video/mp4" />
+                        Your browser does not support HTML5 video.
+                      </video>
+                    </div>
+                  )}
+                </div>
+              </TerminalBox>
+            )}
+          </ChallengeErrorBoundary>
 
           <TerminalBox title="flag_submission.sh">
             <form onSubmit={handleSubmit} className="space-y-4">
