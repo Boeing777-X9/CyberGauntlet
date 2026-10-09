@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { LogOut, Plus, Edit2, Trash2, ToggleLeft, ToggleRight, CheckCircle, XCircle, RefreshCw, Shield, BookOpen, ClipboardList, BarChart3, ChevronDown, ChevronUp, Eye, EyeOff, KeyRound, Users, Trophy, Activity, Radio, Clock } from 'lucide-react';
-import { supabase, isSupabaseConfigured, LeaderboardEntry } from '../lib/supabase';
+import { LogOut, Plus, Edit2, Trash2, ToggleLeft, ToggleRight, CheckCircle, XCircle, RefreshCw, Shield, BookOpen, ClipboardList, BarChart3, ChevronDown, ChevronUp, Eye, EyeOff, KeyRound, Users, Trophy, Activity, Radio, Clock, Play, Pause, Square, FastForward, AlertTriangle, Lock, Unlock, RotateCcw, Timer } from 'lucide-react';
+import { supabase, isSupabaseConfigured, LeaderboardEntry, EventConfig, subscribeToEvents } from '../lib/supabase';
 import { GlitchText } from './GlitchText';
 import { TerminalBox } from './TerminalBox';
 
 interface AdminDashboardProps { onLogout: () => void; }
-type Tab = 'overview' | 'challenges' | 'add' | 'submissions' | 'reset_requests' | 'participants' | 'live_monitor' | 'leaderboard';
+type Tab = 'overview' | 'event_control' | 'challenges' | 'add' | 'submissions' | 'reset_requests' | 'participants' | 'live_monitor' | 'leaderboard';
 
 interface LiveSession {
   id: string;
@@ -79,6 +79,193 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [showFlag, setShowFlag] = useState(false);
   const [processing, setProcessing] = useState<string|null>(null);
+
+  // Tournament Event Management State
+  const [currentEvent, setCurrentEvent] = useState<EventConfig | null>(null);
+  const [nowTick, setNowTick] = useState<number>(Date.now());
+  const [eventDurationMinutes, setEventDurationMinutes] = useState<number>(180);
+  const [customExtendMins, setCustomExtendMins] = useState<number>(15);
+  const [eventUpdating, setEventUpdating] = useState<boolean>(false);
+
+  useEffect(() => {
+    const unsub = subscribeToEvents((evt) => {
+      setCurrentEvent(evt);
+    });
+    const interval = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => {
+      unsub();
+      clearInterval(interval);
+    };
+  }, []);
+
+  const eventStatus = currentEvent?.status || 'draft';
+  const isEventActive = eventStatus === 'active' && currentEvent ? (new Date(currentEvent.end_date).getTime() > nowTick) : false;
+  const isEventPaused = eventStatus === 'paused';
+  const isEventEnded = eventStatus === 'ended' || (eventStatus === 'active' && currentEvent && new Date(currentEvent.end_date).getTime() <= nowTick);
+  const isEventDraft = eventStatus === 'draft';
+
+  let eventSecondsRemaining = 0;
+  if (currentEvent) {
+    if (isEventPaused && currentEvent.paused_at) {
+      const endMs = new Date(currentEvent.end_date).getTime();
+      const pausedMs = new Date(currentEvent.paused_at).getTime();
+      eventSecondsRemaining = Math.max(0, Math.floor((endMs - pausedMs) / 1000));
+    } else if (currentEvent.status === 'active') {
+      const endMs = new Date(currentEvent.end_date).getTime();
+      eventSecondsRemaining = Math.max(0, Math.floor((endMs - nowTick) / 1000));
+    }
+  }
+
+  const formatCountdownClock = (totalSecs: number) => {
+    const hours = Math.floor(totalSecs / 3600);
+    const minutes = Math.floor((totalSecs % 3600) / 60);
+    const seconds = totalSecs % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleStartEvent = async (durationMins: number = eventDurationMinutes) => {
+    setEventUpdating(true);
+    try {
+      const now = new Date();
+      const end = new Date(now.getTime() + durationMins * 60000);
+      const payload = {
+        event_name: currentEvent?.event_name || 'CyberGauntlet 2026',
+        status: 'active',
+        start_date: now.toISOString(),
+        end_date: end.toISOString(),
+        paused_at: null,
+        updated_at: now.toISOString()
+      };
+
+      if (currentEvent?.id) {
+        const { error } = await supabase.from('events').update(payload).eq('id', currentEvent.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('events').insert([payload]);
+        if (error) throw error;
+      }
+      flash(`Competition started! Timer set to ${durationMins} minutes.`);
+    } catch (err: any) {
+      console.error(err);
+      flash(err.message || 'Failed to start competition. Run events migration in Supabase SQL Editor if table is missing.', false);
+    } finally {
+      setEventUpdating(false);
+    }
+  };
+
+  const handlePauseEvent = async () => {
+    if (!currentEvent?.id) return;
+    setEventUpdating(true);
+    try {
+      const now = new Date();
+      const { error } = await supabase.from('events').update({
+        status: 'paused',
+        paused_at: now.toISOString(),
+        updated_at: now.toISOString()
+      }).eq('id', currentEvent.id);
+      if (error) throw error;
+      flash('Competition PAUSED! Flag submissions are locked for all participants.');
+    } catch (err: any) {
+      console.error(err);
+      flash(err.message || 'Failed to pause competition', false);
+    } finally {
+      setEventUpdating(false);
+    }
+  };
+
+  const handleResumeEvent = async () => {
+    if (!currentEvent?.id) return;
+    setEventUpdating(true);
+    try {
+      const now = new Date();
+      const pauseDuration = currentEvent.paused_at
+        ? Math.max(0, now.getTime() - new Date(currentEvent.paused_at).getTime())
+        : 0;
+      const currentEnd = new Date(currentEvent.end_date).getTime();
+      const newEndDate = new Date(currentEnd + pauseDuration).toISOString();
+
+      const { error } = await supabase.from('events').update({
+        status: 'active',
+        end_date: newEndDate,
+        paused_at: null,
+        updated_at: now.toISOString()
+      }).eq('id', currentEvent.id);
+      if (error) throw error;
+      flash('Competition RESUMED! Timer extended by pause duration.');
+    } catch (err: any) {
+      console.error(err);
+      flash(err.message || 'Failed to resume competition', false);
+    } finally {
+      setEventUpdating(false);
+    }
+  };
+
+  const handleExtendTime = async (minutesToAdd: number) => {
+    if (!currentEvent?.id) {
+      flash('No active event found. Start an event first.', false);
+      return;
+    }
+    setEventUpdating(true);
+    try {
+      const currentEnd = new Date(currentEvent.end_date).getTime();
+      const baseTime = Math.max(Date.now(), currentEnd);
+      const newEndDate = new Date(baseTime + minutesToAdd * 60000).toISOString();
+
+      const { error } = await supabase.from('events').update({
+        end_date: newEndDate,
+        status: currentEvent.status === 'ended' ? 'active' : currentEvent.status,
+        updated_at: new Date().toISOString()
+      }).eq('id', currentEvent.id);
+      if (error) throw error;
+      flash(`Competition extended by +${minutesToAdd} minutes!`);
+    } catch (err: any) {
+      console.error(err);
+      flash(err.message || 'Failed to extend time', false);
+    } finally {
+      setEventUpdating(false);
+    }
+  };
+
+  const handleStopEvent = async () => {
+    if (!currentEvent?.id) return;
+    if (!confirm('Are you sure you want to STOP and conclude the competition now? Submissions will be locked immediately for all participants.')) return;
+    setEventUpdating(true);
+    try {
+      const now = new Date();
+      const { error } = await supabase.from('events').update({
+        status: 'ended',
+        end_date: now.toISOString(),
+        updated_at: now.toISOString()
+      }).eq('id', currentEvent.id);
+      if (error) throw error;
+      flash('Competition STOPPED! All submissions locked, final scores preserved.');
+    } catch (err: any) {
+      console.error(err);
+      flash(err.message || 'Failed to stop competition', false);
+    } finally {
+      setEventUpdating(false);
+    }
+  };
+
+  const handleResetEvent = async () => {
+    if (!currentEvent?.id) return;
+    if (!confirm('Reset competition status back to DRAFT?')) return;
+    setEventUpdating(true);
+    try {
+      const { error } = await supabase.from('events').update({
+        status: 'draft',
+        paused_at: null,
+        updated_at: new Date().toISOString()
+      }).eq('id', currentEvent.id);
+      if (error) throw error;
+      flash('Event reset to DRAFT mode.');
+    } catch (err: any) {
+      console.error(err);
+      flash(err.message || 'Failed to reset event', false);
+    } finally {
+      setEventUpdating(false);
+    }
+  };
 
   const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({});
 
@@ -249,6 +436,195 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   const diffColor = (d: string) => d === 'Beginner' ? 'text-green-400 border-green-500' : d === 'Intermediate' ? 'text-yellow-400 border-yellow-500' : 'text-red-400 border-red-500';
 
+  const renderEventControlPanel = (isOverview = false) => {
+    return (
+      <div className="border border-green-500/40 bg-zinc-950/85 rounded-lg p-5 shadow-[0_0_25px_rgba(34,197,94,0.1)]">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-green-500/20">
+          <div>
+            <div className="flex items-center gap-3">
+              <Timer className="w-6 h-6 text-green-400" />
+              <h2 className="text-lg font-black tracking-wide text-white">
+                {currentEvent?.event_name || 'CyberGauntlet 2026'}
+              </h2>
+              <span className={`px-2.5 py-0.5 rounded text-xs font-bold tracking-wider uppercase border flex items-center gap-1.5 ${
+                isEventActive ? 'bg-green-500/20 text-green-400 border-green-500/50 animate-pulse' :
+                isEventPaused ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' :
+                isEventEnded ? 'bg-red-500/20 text-red-400 border-red-500/50' :
+                'bg-blue-500/20 text-blue-400 border-blue-500/50'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  isEventActive ? 'bg-green-400 animate-ping' :
+                  isEventPaused ? 'bg-yellow-400' :
+                  isEventEnded ? 'bg-red-400' :
+                  'bg-blue-400'
+                }`} />
+                {eventStatus.toUpperCase()}
+              </span>
+            </div>
+            <p className="text-green-300/60 text-xs mt-1">
+              {isEventActive && `Active competition running · Submissions OPEN · Auto-locks when timer reaches 00:00:00`}
+              {isEventPaused && `Competition PAUSED · All submissions are FROZEN across all devices`}
+              {isEventEnded && `Competition CONCLUDED · Submissions LOCKED · All responses safely saved in DB`}
+              {isEventDraft && `Draft mode · Configure duration and press START to open tournament`}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 bg-black/60 border border-green-500/30 px-5 py-2.5 rounded-lg">
+            <Clock className="w-5 h-5 text-green-400" />
+            <div>
+              <div className="text-[10px] text-green-600 font-bold uppercase tracking-wider">
+                {isEventActive ? 'Time Remaining' : isEventPaused ? 'Paused At' : isEventEnded ? 'Event Ended' : 'Preset Duration'}
+              </div>
+              <div className="text-2xl font-black font-mono tracking-wider text-green-300">
+                {isEventActive || isEventPaused ? formatCountdownClock(eventSecondsRemaining) :
+                 isEventDraft ? `${Math.floor(eventDurationMinutes / 60)}h ${eventDurationMinutes % 60}m` : '00:00:00'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Primary Action Controls */}
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {(!isEventActive && !isEventPaused) ? (
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              <div className="flex items-center gap-1.5 bg-black/40 border border-green-500/30 rounded p-1">
+                <span className="text-xs text-green-500 px-2 font-bold">Duration:</span>
+                {[60, 120, 180, 240].map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setEventDurationMinutes(m)}
+                    className={`px-2.5 py-1 text-xs rounded font-bold transition-all ${
+                      eventDurationMinutes === m
+                        ? 'bg-green-500 text-black shadow-sm'
+                        : 'text-green-400 hover:bg-green-500/20'
+                    }`}
+                  >
+                    {m / 60}h
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                disabled={eventUpdating}
+                onClick={() => handleStartEvent(eventDurationMinutes)}
+                className="flex items-center gap-2 bg-green-500 hover:bg-green-400 text-black font-black px-5 py-2.5 rounded text-sm transition-all shadow-[0_0_15px_rgba(34,197,94,0.4)] disabled:opacity-50 cursor-pointer"
+              >
+                <Play className="w-4 h-4 fill-black" />
+                START COMPETITION NOW
+              </button>
+            </div>
+          ) : (
+            <>
+              {isEventActive && (
+                <button
+                  type="button"
+                  disabled={eventUpdating}
+                  onClick={handlePauseEvent}
+                  className="flex items-center gap-2 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500 text-yellow-300 font-bold px-4 py-2.5 rounded text-sm transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  <Pause className="w-4 h-4" />
+                  PAUSE COMPETITION
+                </button>
+              )}
+              {isEventPaused && (
+                <button
+                  type="button"
+                  disabled={eventUpdating}
+                  onClick={handleResumeEvent}
+                  className="flex items-center gap-2 bg-green-500 hover:bg-green-400 text-black font-black px-4 py-2.5 rounded text-sm transition-all shadow-[0_0_15px_rgba(34,197,94,0.4)] disabled:opacity-50 cursor-pointer"
+                >
+                  <Play className="w-4 h-4 fill-black" />
+                  RESUME COMPETITION
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={eventUpdating}
+                onClick={handleStopEvent}
+                className="flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500 text-red-400 font-bold px-4 py-2.5 rounded text-sm transition-all disabled:opacity-50 cursor-pointer"
+              >
+                <Square className="w-4 h-4 fill-red-400" />
+                END COMPETITION NOW
+              </button>
+            </>
+          )}
+
+          {/* Quick Extenders */}
+          {currentEvent && (
+            <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+              <span className="text-xs text-green-500/80 font-bold uppercase tracking-wider flex items-center gap-1">
+                <FastForward className="w-3.5 h-3.5 text-green-400" />
+                Extend:
+              </span>
+              {[5, 10, 15, 30, 60].map(mins => (
+                <button
+                  key={mins}
+                  type="button"
+                  disabled={eventUpdating}
+                  onClick={() => handleExtendTime(mins)}
+                  className="px-2.5 py-1.5 bg-green-500/10 hover:bg-green-500/25 border border-green-500/40 text-green-300 hover:text-green-200 rounded text-xs font-mono font-bold transition-all disabled:opacity-40 cursor-pointer"
+                >
+                  +{mins}m
+                </button>
+              ))}
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min="1"
+                  max="300"
+                  value={customExtendMins}
+                  onChange={(e) => setCustomExtendMins(parseInt(e.target.value) || 1)}
+                  className="w-14 bg-black/60 border border-green-500/30 rounded px-2 py-1 text-xs text-green-300 font-mono text-center focus:border-green-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  disabled={eventUpdating}
+                  onClick={() => handleExtendTime(customExtendMins)}
+                  className="px-2.5 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500 text-blue-300 rounded text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
+                >
+                  +Add
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isEventEnded && (
+            <button
+              type="button"
+              disabled={eventUpdating}
+              onClick={handleResetEvent}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white px-3 py-2 border border-gray-700 rounded transition-all cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Reset to Draft
+            </button>
+          )}
+        </div>
+
+        {/* Informational Lock Indicator */}
+        <div className="mt-4 pt-3 border-t border-green-500/15 flex flex-wrap items-center justify-between text-xs text-green-300/70 gap-2">
+          <div className="flex items-center gap-2">
+            {isEventActive ? (
+              <>
+                <Unlock className="w-4 h-4 text-green-400" />
+                <span>Live Submissions: <strong className="text-green-400">OPEN</strong> (Auto-lock will engage when timer reaches 00:00:00)</span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-4 h-4 text-red-400" />
+                <span>Submissions: <strong className="text-red-400">LOCKED</strong> (Contestants cannot submit flags; all responses & scores safely stored)</span>
+              </>
+            )}
+          </div>
+          <div className="text-green-600 font-mono">
+            {currentEvent?.end_date && `Scheduled End: ${new Date(currentEvent.end_date).toLocaleTimeString()}`}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center font-mono">
       <div className="text-green-400 text-center animate-pulse"><Shield className="w-12 h-12 mx-auto mb-3"/><p>Loading admin terminal...</p></div>
@@ -291,6 +667,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         {/* Tabs */}
         <div className="flex border-b border-green-500/20 bg-black/20 px-2 overflow-x-auto">
           {tabBtn('overview', 'Overview', BarChart3)}
+          {tabBtn('event_control', 'Event Control & Timer', Clock)}
           {tabBtn('live_monitor', `Live Activity (${groupedTeamActivity.length} Teams)`, Radio)}
           {tabBtn('leaderboard', `Leaderboard (${leaderboardEntries.length})`, Trophy)}
           {tabBtn('challenges', 'Challenges', BookOpen)}
@@ -304,6 +681,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           {/* OVERVIEW TAB */}
           {tab === 'overview' && (
             <div className="space-y-6">
+              {renderEventControlPanel(true)}
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
                   { label: 'Total Challenges', value: stats.totalChallenges, color: 'green' },
@@ -319,9 +698,43 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
               </div>
               <TerminalBox title="quick_actions.sh">
                 <div className="flex flex-wrap gap-3">
+                  <button onClick={() => setTab('event_control')} className="flex items-center gap-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500 text-green-400 px-4 py-2 rounded text-sm transition-all"><Clock className="w-4 h-4"/>Event & Timer Controls</button>
                   <button onClick={() => setTab('add')} className="flex items-center gap-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500 text-green-400 px-4 py-2 rounded text-sm transition-all"><Plus className="w-4 h-4"/>New Challenge</button>
                   <button onClick={() => setTab('submissions')} className="flex items-center gap-2 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500 text-yellow-400 px-4 py-2 rounded text-sm transition-all"><ClipboardList className="w-4 h-4"/>Review Submissions</button>
                   <button onClick={fetchAll} className="flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500 text-blue-400 px-4 py-2 rounded text-sm transition-all"><RefreshCw className="w-4 h-4"/>Refresh Data</button>
+                </div>
+              </TerminalBox>
+            </div>
+          )}
+
+          {/* EVENT CONTROL TAB */}
+          {tab === 'event_control' && (
+            <div className="space-y-6">
+              <TerminalBox title="event_control_center.sh">
+                <div className="space-y-6">
+                  {renderEventControlPanel(false)}
+
+                  <div className="grid md:grid-cols-2 gap-4 pt-2">
+                    <div className="bg-black/50 border border-green-500/30 rounded-lg p-4 space-y-2">
+                      <h4 className="font-bold text-green-400 flex items-center gap-2 text-sm">
+                        <Shield className="w-4 h-4 text-green-400" /> Auto-Lock & Anti-Tamper Security
+                      </h4>
+                      <p className="text-xs text-green-300/70 leading-relaxed">
+                        When the timer reaches 00:00:00, or when you pause/stop the event, submission locks engage both in the contestant browser and in PostgreSQL server functions.
+                        No one can submit late flags. Contestant scores and times are preserved exactly as they were.
+                      </p>
+                    </div>
+
+                    <div className="bg-black/50 border border-green-500/30 rounded-lg p-4 space-y-2">
+                      <h4 className="font-bold text-yellow-400 flex items-center gap-2 text-sm">
+                        <FastForward className="w-4 h-4 text-yellow-400" /> Real-Time Live Extensions
+                      </h4>
+                      <p className="text-xs text-green-300/70 leading-relaxed">
+                        Need to give teams an extra 10 or 15 minutes? Click any quick extension button (+5m, +10m, +15m, +30m).
+                        The extension is transmitted instantaneously to all contestant screens via Supabase real-time channels with zero page reload needed.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </TerminalBox>
             </div>

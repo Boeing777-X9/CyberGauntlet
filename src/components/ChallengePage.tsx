@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Terminal, CheckCircle, XCircle, Clock, Trophy, LogOut, ChevronDown, ChevronUp, Users, MessageSquare, Plus, Edit, Trash2, Radio, ExternalLink, FileText, Archive, Music, Image as ImageIcon } from 'lucide-react';
+import { Download, Terminal, CheckCircle, XCircle, Clock, Trophy, LogOut, ChevronDown, ChevronUp, Users, MessageSquare, Plus, Edit, Trash2, Radio, ExternalLink, FileText, Archive, Music, Image as ImageIcon, Lock, Unlock, Pause } from 'lucide-react';
 import { GlitchText } from './GlitchText';
 import { TerminalBox } from './TerminalBox';
 import { Leaderboard } from './Leaderboard';
-import { supabase, isSupabaseConfigured, TeamNote, subscribeToTeamNotes } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, TeamNote, subscribeToTeamNotes, EventConfig, subscribeToEvents } from '../lib/supabase';
 
 interface ChallengePageProps {
   teamId: string;
@@ -21,14 +21,7 @@ interface LocalChallenge {
   hintsUsed?: number;
 }
 
-interface Event {
-  id: string;
-  event_name: string;
-  start_date: string;
-  end_date: string;
-  active_challenges: string[];
-  created_at: string;
-}
+type Event = EventConfig;
 
 export interface AttachmentItem {
   name: string;
@@ -85,7 +78,7 @@ export const getChallengeAttachments = (q?: Question | null): AttachmentItem[] =
     ];
   }
 
-  if (q.id === 'c1-domes-mirage') {
+  if (q.id === 'c1-domes-mirage' || q.id === 'c1-dome-mirage') {
     return [
       { name: 'stego_1 (1).png', url: '/challenges/media/stego_1 (1).png', type: 'image', description: 'Mirage surveillance image' },
     ];
@@ -234,7 +227,68 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
   const [points, setPoints] = useState(100);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [currentEvent, setCurrentEvent] = useState<Event | null>(null);
+  const [nowTick, setNowTick] = useState<number>(Date.now());
   const [availableChallenges, setAvailableChallenges] = useState<Question[]>(SAMPLE_QUESTIONS); // Initialize with hardcoded, then fetch from DB
+
+  // Real-time synchronization with tournament event state
+  useEffect(() => {
+    const unsub = subscribeToEvents((evt) => {
+      setCurrentEvent(evt);
+    });
+    const interval = setInterval(() => {
+      setNowTick(Date.now());
+    }, 1000);
+    return () => {
+      unsub();
+      clearInterval(interval);
+    };
+  }, []);
+
+  const getEventLockState = () => {
+    if (!currentEvent) {
+      return { locked: false, reason: '', status: 'active', timeLeft: null };
+    }
+
+    if (currentEvent.status === 'draft') {
+      return {
+        locked: true,
+        reason: 'Competition has not started yet. Waiting for organizers to launch.',
+        status: 'draft',
+        timeLeft: null
+      };
+    }
+
+    if (currentEvent.status === 'paused') {
+      return {
+        locked: true,
+        reason: 'Competition is currently PAUSED by Admin. Flag submissions are temporarily frozen.',
+        status: 'paused',
+        timeLeft: null
+      };
+    }
+
+    const endMs = new Date(currentEvent.end_date).getTime();
+    const diffMs = endMs - nowTick;
+
+    if (currentEvent.status === 'ended' || diffMs <= 0) {
+      return {
+        locked: true,
+        reason: 'Competition has CONCLUDED. All submissions are locked and your responses are safely saved.',
+        status: 'ended',
+        timeLeft: 0
+      };
+    }
+
+    return {
+      locked: false,
+      reason: '',
+      status: 'active',
+      timeLeft: Math.max(0, Math.floor(diffMs / 1000))
+    };
+  };
+
+  const lockState = getEventLockState();
+  const isEventLocked = lockState.locked;
 
   // Team notes state
   const [teamNotes, setTeamNotes] = useState<TeamNote[]>([]);
@@ -534,6 +588,11 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
     e.preventDefault();
     if (!question || !challenge) return;
 
+    if (isEventLocked) {
+      alert(lockState.reason || 'Submissions are currently locked.');
+      return;
+    }
+
     // Normalize flag prefix (e.g. QUEST{...} -> quest{...}, FLAG{...} -> flag{...})
     // Prefix is case-insensitive, while inner answer is strictly case-sensitive
     let submittedFlag = flag.trim();
@@ -569,6 +628,10 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
       });
 
       if (!rpcError && rpcData) {
+        if (rpcData.error) {
+          alert(rpcData.error);
+          return;
+        }
         isCorrect = rpcData.is_correct === true;
       } else {
         // 2. Fallback: call edge function if configured
@@ -873,36 +936,69 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-green-400 font-mono">
       <div className="scanlines"></div>
       <div className="relative z-10 container mx-auto px-4 py-6 max-w-4xl">
-        {/* Event Notification Banner */}
+        {/* Real-time Event Notification & Status Banner */}
         {currentEvent && (
           <div className="mb-6">
-            <TerminalBox title="event_notification.sh">
-              <div className="flex items-center justify-between">
+            <div className={`p-4 rounded-lg border transition-all ${
+              lockState.status === 'active'
+                ? 'bg-zinc-950/80 border-green-500/50 shadow-[0_0_20px_rgba(34,197,94,0.15)] text-green-300'
+                : lockState.status === 'paused'
+                ? 'bg-yellow-950/40 border-yellow-500/60 shadow-[0_0_25px_rgba(234,179,8,0.2)] text-yellow-300'
+                : lockState.status === 'ended'
+                ? 'bg-red-950/40 border-red-500/60 shadow-[0_0_25px_rgba(239,68,68,0.2)] text-red-300'
+                : 'bg-blue-950/40 border-blue-500/50 text-blue-300'
+            }`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${
-                    getTimeUntilEvent(currentEvent).type === 'active' ? 'bg-green-500 animate-pulse' :
-                    getTimeUntilEvent(currentEvent).type === 'upcoming' ? 'bg-blue-500' : 'bg-gray-500'
-                  }`}></div>
+                  <div className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${
+                    lockState.status === 'active' ? 'bg-green-400 animate-ping' :
+                    lockState.status === 'paused' ? 'bg-yellow-400 animate-pulse' :
+                    lockState.status === 'ended' ? 'bg-red-500' : 'bg-blue-400'
+                  }`} />
                   <div>
-                    <h3 className="text-green-400 font-bold">{currentEvent.event_name}</h3>
-                    <p className="text-green-300/60 text-sm">
-                      {getTimeUntilEvent(currentEvent).type === 'active' ? 'Event is currently active' :
-                       getTimeUntilEvent(currentEvent).type === 'upcoming' ? 'Event starts soon' : 'Event has ended'}
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-base text-white">{currentEvent.event_name}</span>
+                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${
+                        lockState.status === 'active' ? 'bg-green-500/20 text-green-300 border-green-500/40' :
+                        lockState.status === 'paused' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' :
+                        lockState.status === 'ended' ? 'bg-red-500/20 text-red-300 border-red-500/40' :
+                        'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                      }`}>
+                        {lockState.status === 'active' ? 'LIVE NOW' :
+                         lockState.status === 'paused' ? 'PAUSED' :
+                         lockState.status === 'ended' ? 'LOCKED / CONCLUDED' : 'SCHEDULED'}
+                      </span>
+                    </div>
+                    <p className="text-xs opacity-80 mt-0.5">
+                      {lockState.status === 'active' && 'Submissions active. Timer counts down to auto-lock.'}
+                      {lockState.status === 'paused' && 'Organizers have temporarily paused the event. Submissions are frozen.'}
+                      {lockState.status === 'ended' && 'Event has concluded. All submissions locked; all points & solves are recorded.'}
+                      {lockState.status === 'draft' && 'Waiting for organizers to start competition.'}
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-green-400 font-mono text-sm">
-                    {getTimeUntilEvent(currentEvent).type === 'active' ? 'ENDS IN:' :
-                     getTimeUntilEvent(currentEvent).type === 'upcoming' ? 'STARTS IN:' : 'ENDED'}
-                  </div>
-                  <div className="text-green-300/80 text-xs">
-                    {getTimeUntilEvent(currentEvent).type !== 'ended' ?
-                      formatCountdown(getTimeUntilEvent(currentEvent).timeLeft) : ''}
+
+                <div className="flex items-center gap-3 self-end sm:self-auto bg-black/60 px-4 py-2 rounded border border-white/10 font-mono">
+                  <Clock className={`w-4 h-4 ${
+                    lockState.status === 'active' ? 'text-green-400' :
+                    lockState.status === 'paused' ? 'text-yellow-400' :
+                    lockState.status === 'ended' ? 'text-red-400' : 'text-blue-400'
+                  }`} />
+                  <div>
+                    <div className="text-[10px] uppercase opacity-70 font-sans font-bold">
+                      {lockState.status === 'active' ? 'TIME REMAINING' :
+                       lockState.status === 'paused' ? 'PAUSED' :
+                       lockState.status === 'ended' ? 'FINAL STATUS' : 'STARTS IN'}
+                    </div>
+                    <div className="text-xl font-bold tracking-wider">
+                      {lockState.status === 'active' && lockState.timeLeft !== null ? formatCountdown(lockState.timeLeft * 1000) :
+                       lockState.status === 'paused' ? 'FROZEN' :
+                       lockState.status === 'ended' ? '00:00:00' : 'SOON'}
+                    </div>
                   </div>
                 </div>
               </div>
-            </TerminalBox>
+            </div>
           </div>
         )}
         <header className="flex items-center justify-between mb-8">
@@ -1400,8 +1496,13 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
                   type="text"
                   value={flag}
                   onChange={(e) => setFlag(e.target.value)}
-                  placeholder={question?.id === 'c2-ghs-frequency' ? 'flag{...}' : 'Enter flag here...'}
-                  disabled={challenge?.completed}
+                  placeholder={
+                    lockState.status === 'paused' ? 'Competition paused by admin (submissions frozen)...' :
+                    lockState.status === 'ended' ? 'Competition concluded - submissions locked' :
+                    lockState.status === 'draft' ? 'Competition starting soon...' :
+                    (question?.id === 'c2-ghs-frequency' ? 'flag{...}' : 'Enter flag here...')
+                  }
+                  disabled={challenge?.completed || isEventLocked}
                   className="w-full bg-black/50 border border-green-500/30 rounded px-4 py-3 text-green-400 placeholder-green-700 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 disabled:opacity-50 font-mono"
                   required
                 />
@@ -1409,11 +1510,32 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
 
               <button
                 type="submit"
-                disabled={challenge?.completed}
+                disabled={challenge?.completed ? false : isEventLocked}
                 className="w-full bg-green-600 hover:bg-green-700 text-black font-bold py-3 rounded-lg transition-all hover:shadow-lg hover:shadow-green-500/50 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Terminal className="w-5 h-5" />
-                {challenge?.completed ? 'NEXT CHALLENGE →' : 'VERIFY FLAG'}
+                {isEventLocked ? (
+                  lockState.status === 'paused' ? (
+                    <>
+                      <Pause className="w-5 h-5 text-yellow-300" />
+                      <span className="text-yellow-300 font-bold">COMPETITION PAUSED — SUBMISSIONS FROZEN</span>
+                    </>
+                  ) : lockState.status === 'draft' ? (
+                    <>
+                      <Clock className="w-5 h-5 text-blue-300" />
+                      <span className="text-blue-300 font-bold">COMPETITION NOT STARTED YET</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-5 h-5 text-red-300" />
+                      <span className="text-red-300 font-bold">TIME EXPIRED — SUBMISSIONS LOCKED</span>
+                    </>
+                  )
+                ) : (
+                  <>
+                    <Terminal className="w-5 h-5" />
+                    {challenge?.completed ? 'NEXT CHALLENGE →' : 'VERIFY FLAG'}
+                  </>
+                )}
               </button>
             </form>
 

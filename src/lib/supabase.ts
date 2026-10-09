@@ -98,3 +98,59 @@ export const subscribeToTeamNotes = (
     channel.unsubscribe();
   };
 };
+
+export interface EventConfig {
+  id: string;
+  event_name: string;
+  status: 'draft' | 'active' | 'paused' | 'ended';
+  start_date: string;
+  end_date: string;
+  paused_at?: string | null;
+  active_challenges?: string[];
+  created_at: string;
+  updated_at?: string;
+}
+
+export const subscribeToEvents = (callback: (event: EventConfig | null) => void) => {
+  if (!isSupabaseConfigured) return () => {};
+
+  const fetchCurrentEvent = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        callback(data as EventConfig);
+      } else if (!data) {
+        callback(null);
+      }
+    } catch (e) {
+      console.warn('Events fetch warning:', e);
+    }
+  };
+
+  fetchCurrentEvent();
+
+  const channel = supabase
+    .channel('events_realtime_changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'events',
+      },
+      () => {
+        fetchCurrentEvent();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    channel.unsubscribe();
+  };
+};
