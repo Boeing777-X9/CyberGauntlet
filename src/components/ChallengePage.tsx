@@ -245,11 +245,7 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
   }, []);
 
   const getEventLockState = () => {
-    if (!currentEvent) {
-      return { locked: false, reason: '', status: 'active', timeLeft: null };
-    }
-
-    if (currentEvent.status === 'draft') {
+    if (!currentEvent || currentEvent.status === 'draft') {
       return {
         locked: true,
         reason: 'Competition has not started yet. Waiting for organizers to launch.',
@@ -444,17 +440,6 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
       const completed = localStorage.getItem(`cybergauntlet_completed_${teamId}`);
       setCompletedQuestions(completed ? JSON.parse(completed) : []);
 
-      // Fetch current active event
-      if (isSupabaseConfigured) {
-        const now = new Date().toISOString();
-        const { data: event } = await supabase
-          .from('events')
-          .select('*')
-          .lte('start_date', now)
-          .gte('end_date', now)
-          .single();
-        setCurrentEvent(event);
-      }
 
       // Fetch team points
       if (isSupabaseConfigured) {

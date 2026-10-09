@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { LogOut, Plus, Edit2, Trash2, ToggleLeft, ToggleRight, CheckCircle, XCircle, RefreshCw, Shield, BookOpen, ClipboardList, BarChart3, ChevronDown, ChevronUp, Eye, EyeOff, KeyRound, Users, Trophy, Activity, Radio, Clock, Play, Pause, Square, FastForward, AlertTriangle, Lock, Unlock, RotateCcw, Timer } from 'lucide-react';
-import { supabase, isSupabaseConfigured, LeaderboardEntry, EventConfig, subscribeToEvents } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, LeaderboardEntry, EventConfig, subscribeToEvents, saveTournamentEvent } from '../lib/supabase';
 import { GlitchText } from './GlitchText';
 import { TerminalBox } from './TerminalBox';
 
@@ -128,7 +128,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
     try {
       const now = new Date();
       const end = new Date(now.getTime() + durationMins * 60000);
-      const payload = {
+      const payload: EventConfig = {
+        id: currentEvent?.id || 'tournament-2026',
         event_name: currentEvent?.event_name || 'CyberGauntlet 2026',
         status: 'active',
         start_date: now.toISOString(),
@@ -137,33 +138,30 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         updated_at: now.toISOString()
       };
 
-      if (currentEvent?.id) {
-        const { error } = await supabase.from('events').update(payload).eq('id', currentEvent.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('events').insert([payload]);
-        if (error) throw error;
-      }
+      await saveTournamentEvent(payload);
+      setCurrentEvent(payload);
       flash(`Competition started! Timer set to ${durationMins} minutes.`);
     } catch (err: any) {
       console.error(err);
-      flash(err.message || 'Failed to start competition. Run events migration in Supabase SQL Editor if table is missing.', false);
+      flash(err.message || 'Failed to start competition.', false);
     } finally {
       setEventUpdating(false);
     }
   };
 
   const handlePauseEvent = async () => {
-    if (!currentEvent?.id) return;
+    if (!currentEvent) return;
     setEventUpdating(true);
     try {
       const now = new Date();
-      const { error } = await supabase.from('events').update({
+      const payload: EventConfig = {
+        ...currentEvent,
         status: 'paused',
         paused_at: now.toISOString(),
         updated_at: now.toISOString()
-      }).eq('id', currentEvent.id);
-      if (error) throw error;
+      };
+      await saveTournamentEvent(payload);
+      setCurrentEvent(payload);
       flash('Competition PAUSED! Flag submissions are locked for all participants.');
     } catch (err: any) {
       console.error(err);
@@ -174,7 +172,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   };
 
   const handleResumeEvent = async () => {
-    if (!currentEvent?.id) return;
+    if (!currentEvent) return;
     setEventUpdating(true);
     try {
       const now = new Date();
@@ -184,13 +182,15 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       const currentEnd = new Date(currentEvent.end_date).getTime();
       const newEndDate = new Date(currentEnd + pauseDuration).toISOString();
 
-      const { error } = await supabase.from('events').update({
+      const payload: EventConfig = {
+        ...currentEvent,
         status: 'active',
         end_date: newEndDate,
         paused_at: null,
         updated_at: now.toISOString()
-      }).eq('id', currentEvent.id);
-      if (error) throw error;
+      };
+      await saveTournamentEvent(payload);
+      setCurrentEvent(payload);
       flash('Competition RESUMED! Timer extended by pause duration.');
     } catch (err: any) {
       console.error(err);
@@ -201,7 +201,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   };
 
   const handleExtendTime = async (minutesToAdd: number) => {
-    if (!currentEvent?.id) {
+    if (!currentEvent) {
       flash('No active event found. Start an event first.', false);
       return;
     }
@@ -211,12 +211,14 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       const baseTime = Math.max(Date.now(), currentEnd);
       const newEndDate = new Date(baseTime + minutesToAdd * 60000).toISOString();
 
-      const { error } = await supabase.from('events').update({
+      const payload: EventConfig = {
+        ...currentEvent,
         end_date: newEndDate,
         status: currentEvent.status === 'ended' ? 'active' : currentEvent.status,
         updated_at: new Date().toISOString()
-      }).eq('id', currentEvent.id);
-      if (error) throw error;
+      };
+      await saveTournamentEvent(payload);
+      setCurrentEvent(payload);
       flash(`Competition extended by +${minutesToAdd} minutes!`);
     } catch (err: any) {
       console.error(err);
@@ -227,17 +229,19 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   };
 
   const handleStopEvent = async () => {
-    if (!currentEvent?.id) return;
+    if (!currentEvent) return;
     if (!confirm('Are you sure you want to STOP and conclude the competition now? Submissions will be locked immediately for all participants.')) return;
     setEventUpdating(true);
     try {
       const now = new Date();
-      const { error } = await supabase.from('events').update({
+      const payload: EventConfig = {
+        ...currentEvent,
         status: 'ended',
         end_date: now.toISOString(),
         updated_at: now.toISOString()
-      }).eq('id', currentEvent.id);
-      if (error) throw error;
+      };
+      await saveTournamentEvent(payload);
+      setCurrentEvent(payload);
       flash('Competition STOPPED! All submissions locked, final scores preserved.');
     } catch (err: any) {
       console.error(err);
@@ -248,17 +252,21 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
   };
 
   const handleResetEvent = async () => {
-    if (!currentEvent?.id) return;
-    if (!confirm('Reset competition status back to DRAFT?')) return;
+    if (!confirm('Reset competition status back to DRAFT? Submissions will be locked for all participants.')) return;
     setEventUpdating(true);
     try {
-      const { error } = await supabase.from('events').update({
+      const payload: EventConfig = {
+        id: currentEvent?.id || 'tournament-2026',
+        event_name: currentEvent?.event_name || 'CyberGauntlet 2026',
         status: 'draft',
+        start_date: new Date().toISOString(),
+        end_date: new Date(Date.now() + 180 * 60000).toISOString(),
         paused_at: null,
         updated_at: new Date().toISOString()
-      }).eq('id', currentEvent.id);
-      if (error) throw error;
-      flash('Event reset to DRAFT mode.');
+      };
+      await saveTournamentEvent(payload);
+      setCurrentEvent(payload);
+      flash('Event reset to DRAFT mode. Submissions locked.');
     } catch (err: any) {
       console.error(err);
       flash(err.message || 'Failed to reset event', false);
@@ -603,24 +611,49 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         {/* Primary Action Controls */}
         <div className="mt-4 flex flex-wrap items-center gap-3">
           {(!isEventActive && !isEventPaused) ? (
-            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-              <div className="flex items-center gap-1.5 bg-black/40 border border-green-500/30 rounded p-1">
-                <span className="text-xs text-green-500 px-2 font-bold">Duration:</span>
-                {[60, 120, 180, 240].map(m => (
+            <div className="flex flex-wrap items-center gap-3 w-full">
+              <div className="flex flex-wrap items-center gap-2 bg-black/40 border border-green-500/30 rounded p-1.5">
+                <span className="text-xs text-green-500 px-1 font-bold flex items-center gap-1">
+                  <Timer className="w-3.5 h-3.5 text-green-400" />
+                  Duration:
+                </span>
+                {[
+                  { label: '30m', mins: 30 },
+                  { label: '45m', mins: 45 },
+                  { label: '1h', mins: 60 },
+                  { label: '2h', mins: 120 },
+                  { label: '3h', mins: 180 },
+                  { label: '4h', mins: 240 },
+                  { label: '5h', mins: 300 },
+                ].map(p => (
                   <button
-                    key={m}
+                    key={p.mins}
                     type="button"
-                    onClick={() => setEventDurationMinutes(m)}
-                    className={`px-2.5 py-1 text-xs rounded font-bold transition-all ${
-                      eventDurationMinutes === m
+                    onClick={() => setEventDurationMinutes(p.mins)}
+                    className={`px-2.5 py-1 text-xs rounded font-bold transition-all cursor-pointer ${
+                      eventDurationMinutes === p.mins
                         ? 'bg-green-500 text-black shadow-sm'
                         : 'text-green-400 hover:bg-green-500/20'
                     }`}
                   >
-                    {m / 60}h
+                    {p.label}
                   </button>
                 ))}
+                <div className="flex items-center gap-1 pl-2 border-l border-green-500/20">
+                  <span className="text-xs text-green-400/80 font-bold">Custom:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="1440"
+                    value={eventDurationMinutes}
+                    onChange={(e) => setEventDurationMinutes(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-16 bg-black/70 border border-green-500/40 rounded px-2 py-0.5 text-xs text-green-300 font-mono text-center focus:border-green-400 focus:outline-none"
+                    placeholder="mins"
+                  />
+                  <span className="text-xs text-green-500/80 font-mono">mins</span>
+                </div>
               </div>
+
               <button
                 type="button"
                 disabled={eventUpdating}
@@ -628,7 +661,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 className="flex items-center gap-2 bg-green-500 hover:bg-green-400 text-black font-black px-5 py-2.5 rounded text-sm transition-all shadow-[0_0_15px_rgba(34,197,94,0.4)] disabled:opacity-50 cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-black" />
-                START COMPETITION NOW
+                START COMPETITION NOW ({eventDurationMinutes}m)
               </button>
             </div>
           ) : (
