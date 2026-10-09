@@ -990,7 +990,7 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
                             {q.title}
                           </p>
                           <p className="text-xs text-green-300/60">
-                            {q.category} • {q.difficulty} • {isCompleted ? 'Completed' : 'Not Completed'}
+                            {q.category} • {q.difficulty?.toLowerCase() === 'hard' ? 'Hard (300 pts)' : q.difficulty?.toLowerCase() === 'medium' ? 'Medium (200 pts)' : 'Easy (100 pts)'} • {isCompleted ? 'Completed' : 'Not Completed'}
                           </p>
                         </div>
                       </div>
@@ -1080,15 +1080,19 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
                             }`}
                           >
                             <div className="flex items-center justify-between w-full mb-2">
-                              <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${
-                                q.difficulty === 'Medium' || q.difficulty === 'Intermediate'
-                                  ? 'bg-orange-950/60 text-orange-400 border-orange-500/50 shadow-[0_0_8px_rgba(255,106,0,0.3)]'
-                                  : q.difficulty === 'Hard' || q.difficulty === 'Advanced'
-                                  ? 'bg-rose-950/60 text-rose-400 border-rose-500/50 shadow-[0_0_8px_rgba(255,0,85,0.3)]'
-                                  : 'bg-cyan-950/60 text-cyan-400 border-cyan-500/50 shadow-[0_0_8px_rgba(0,229,255,0.3)]'
-                              }`}>
-                                {q.difficulty === 'Intermediate' ? 'Medium' : q.difficulty}
-                              </span>
+                              {q.difficulty?.toLowerCase() === 'hard' || q.difficulty?.toLowerCase() === 'advanced' ? (
+                                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border bg-red-500/20 text-red-400 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.35)]">
+                                  HARD • 300 PTS
+                                </span>
+                              ) : q.difficulty?.toLowerCase() === 'medium' || q.difficulty?.toLowerCase() === 'intermediate' ? (
+                                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border bg-orange-500/20 text-orange-400 border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.35)]">
+                                  MEDIUM • 200 PTS
+                                </span>
+                              ) : (
+                                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border bg-yellow-500/20 text-yellow-300 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.35)]">
+                                  EASY • 100 PTS
+                                </span>
+                              )}
                               {isCompleted ? (
                                 <span className="flex items-center gap-1 text-[11px] text-green-400 font-bold bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/30">
                                   <CheckCircle className="w-3.5 h-3.5 text-green-400" /> SOLVED
@@ -1189,15 +1193,19 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
                     <span className="text-xs px-2.5 py-1 bg-black/60 border border-green-500/40 text-green-400 font-bold rounded">
                       {question?.category}
                     </span>
-                    <span className={`text-xs px-2.5 py-1 font-bold rounded border ${
-                      question?.difficulty === 'Medium' || question?.difficulty === 'Intermediate'
-                        ? 'bg-orange-950/40 border-orange-500 text-orange-400 shadow-[0_0_10px_rgba(255,106,0,0.3)]'
-                        : question?.difficulty === 'Hard' || question?.difficulty === 'Advanced'
-                        ? 'bg-rose-950/40 border-rose-500 text-rose-400'
-                        : 'bg-emerald-950/40 border-emerald-500 text-emerald-400'
-                    }`}>
-                      {question?.difficulty === 'Intermediate' ? 'Medium' : question?.difficulty}
-                    </span>
+                    {question?.difficulty?.toLowerCase() === 'hard' || question?.difficulty?.toLowerCase() === 'advanced' ? (
+                      <span className="text-xs px-2.5 py-1 font-bold rounded border bg-red-500/20 text-red-400 border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.35)]">
+                        HARD • 300 PTS
+                      </span>
+                    ) : question?.difficulty?.toLowerCase() === 'medium' || question?.difficulty?.toLowerCase() === 'intermediate' ? (
+                      <span className="text-xs px-2.5 py-1 font-bold rounded border bg-orange-500/20 text-orange-400 border-orange-500 shadow-[0_0_12px_rgba(249,115,22,0.35)]">
+                        MEDIUM • 200 PTS
+                      </span>
+                    ) : (
+                      <span className="text-xs px-2.5 py-1 font-bold rounded border bg-yellow-500/20 text-yellow-300 border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.35)]">
+                        EASY • 100 PTS
+                      </span>
+                    )}
                   </div>
                   <h2 className="text-2xl text-green-400 mb-3">{question?.title}</h2>
                   
@@ -1310,12 +1318,9 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
                   <div className="border-t border-green-500/20 pt-4">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-green-400 font-semibold">HINTS ({revealedHints.length}/{question.hints.length}):</h3>
-                      <span className="text-xs text-yellow-400/90 bg-yellow-400/10 px-2.5 py-0.5 rounded border border-yellow-400/30 font-mono">
-                        No Marks Deducted
-                      </span>
                     </div>
                     {revealedHints.length === 0 ? (
-                      <p className="text-green-300/50 text-xs italic">No hints unlocked yet. Click below to reveal a hint without any penalty.</p>
+                      <p className="text-green-300/50 text-xs italic">No hints unlocked yet. Click below to reveal a hint.</p>
                     ) : (
                       <ul className="space-y-2 text-green-300/80 text-sm">
                         {revealedHints.map((hintIndex) => (
@@ -1330,7 +1335,7 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
                         onClick={revealNextHint}
                         className="mt-3 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500 text-yellow-400 px-4 py-2 rounded transition-all text-sm font-semibold flex items-center gap-2 cursor-pointer"
                       >
-                        <span>🔓 UNLOCK NEXT HINT (Free)</span>
+                        <span>🔓 UNLOCK NEXT HINT</span>
                       </button>
                     )}
                   </div>
