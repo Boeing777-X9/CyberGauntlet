@@ -39,6 +39,8 @@ interface Question {
   hints: string[];
   category: string;
   difficulty: string;
+  media_type?: 'image' | 'video' | 'file' | 'link';
+  media_url?: string;
 }
 
 const SAMPLE_QUESTIONS: Question[] = [];
@@ -1009,18 +1011,62 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
             </div>
           </TerminalBox>
 
-          {question?.file_name && question?.file_path && (
-            <TerminalBox title="download.sh">
-              <div className="text-center">
-                <button
-                  onClick={handleDownload}
-                  disabled={challenge?.completed}
-                  className="inline-flex items-center gap-3 bg-green-500/10 hover:bg-green-500/20 border-2 border-green-500 text-green-400 px-8 py-4 rounded-lg font-bold text-lg transition-all hover:shadow-lg hover:shadow-green-500/50 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Download className="w-6 h-6" />
-                  DOWNLOAD CHALLENGE FILE
-                </button>
-                <p className="text-green-300/50 text-xs mt-3">{question.file_name}</p>
+          {/* Challenge Media & Payload Presentation (matches ctfcsc) */}
+          {question && (question.media_url || (question.file_name && question.file_path)) && (
+            <TerminalBox title="payload_preview.sh">
+              <div className="space-y-4">
+                {/* Image Media Preview */}
+                {question.media_type === 'image' && question.media_url && (
+                  <div className="flex justify-center p-2 bg-black/50 border border-green-500/20 rounded">
+                    <img
+                      src={question.media_url}
+                      alt={question.title}
+                      className="max-h-96 w-auto object-contain rounded border border-green-500/40 shadow-[0_0_20px_rgba(34,197,94,0.15)]"
+                    />
+                  </div>
+                )}
+
+                {/* Video Media Preview */}
+                {question.media_type === 'video' && question.media_url && (
+                  <div className="flex justify-center p-2 bg-black/50 border border-green-500/20 rounded">
+                    <video
+                      controls
+                      className="max-h-96 w-full max-w-xl rounded border border-green-500/40 shadow-[0_0_20px_rgba(34,197,94,0.15)]"
+                    >
+                      <source src={question.media_url} type="video/mp4" />
+                      Your browser does not support HTML5 video.
+                    </video>
+                  </div>
+                )}
+
+                {/* Download / Access Button */}
+                <div className="text-center pt-2">
+                  {question.media_type === 'link' || question.file_path.startsWith('http') ? (
+                    <a
+                      href={question.file_path}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-3 bg-green-500/10 hover:bg-green-500/20 border-2 border-green-500 text-green-400 px-8 py-3.5 rounded-lg font-bold text-base transition-all hover:shadow-lg hover:shadow-green-500/50 hover:scale-105"
+                    >
+                      <Terminal className="w-5 h-5" />
+                      ACCESS TARGET INTERFACE ↗
+                    </a>
+                  ) : (
+                    <a
+                      href={question.file_path}
+                      download={question.file_name}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-3 bg-green-500/10 hover:bg-green-500/20 border-2 border-green-500 text-green-400 px-8 py-3.5 rounded-lg font-bold text-base transition-all hover:shadow-lg hover:shadow-green-500/50 hover:scale-105"
+                    >
+                      <Download className="w-5 h-5" />
+                      EXTRACT PAYLOAD ({question.file_name})
+                    </a>
+                  )}
+                  <p className="text-green-300/40 text-xs mt-2 font-mono">
+                    {question.file_path}
+                  </p>
+                </div>
               </div>
             </TerminalBox>
           )}

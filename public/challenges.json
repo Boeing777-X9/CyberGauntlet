@@ -1,74 +1,101 @@
 {
   "challenges": [
     {
-      "id": "q1",
-      "title": "The Cryptographer's Dilemma",
-      "description": "You are a cybersecurity consultant investigating a breach at the Ministry of Digital Secrets. The lead cryptographer, Dr. Eliza Vance, disappeared just hours before the attack. The only thing she left behind was a strange, encrypted diary entry and a file on her desktop labeled cipher_collection.txt. Your team believes Dr. Vance was trying to leave a final, complex message before being abducted—a message hidden among decoys. The diary entry gives you a vital clue, but you must still figure out which cipher in the file holds the true flag and which ones are red herrings.",
-      "file_name": "cipher_collection.txt",
-      "file_path": "/challenges/q1/cipher_collection.txt",
+      "id": "c1-dome-mirage",
+      "title": "Challenge 1: The Dome's Mirage",
+      "description": "[SCENARIO] We intercepted visual data feeds originating from the dome building at Manipal University Jaipur. The operative attempted to exfiltrate a secure routing code, but the transmission was split into identical-looking layers to avoid detection. Find the mathematical difference between the image feeds to reveal the hidden matrix.",
+      "file_name": "stego_1 (1).png",
+      "file_path": "/challenges/media/stego_1 (1).png",
+      "media_type": "image",
+      "media_url": "/challenges/media/stego_1 (1).png",
       "hints": [
-        "This code is based on a simple rotational shift of 3 for every letter in the alphabet",
-        "This message is encoded using Polybius square coordinates; you must first group the ciphertext by fives, then use a keyword to untangle the column order.",
-        "The decryption key for this substitution is half the alphabet, meaning the shift applied to the ciphertext is equal to the length of the shift itself."
+        "Inspect the subtle difference across color channels or layers.",
+        "Use mathematical image difference tools or Stegsolve."
       ],
-      "category": "Cryptography",
-      "difficulty": "Intermediate"
+      "category": "Stego",
+      "difficulty": "Medium",
+      "points": 150
     },
     {
-      "id": "q2",
-      "title": "Pair Sum Optimization",
-      "description": "You are auditing a data processing script for a university that needs to quickly count successful pairings of student IDs. You are given a large array of unique, positive, and sorted integer IDs. The university defines a successful pair as any two distinct IDs a, b in the array whose sum equals a specific target number, T. Your primary constraint is efficiency. Since the list is already sorted, you must devise an algorithm that counts all unique pairs in a single, highly optimized pass that avoids nested loops—a technique typically required for speed in large datasets.",
-      "file_name": "",
-      "file_path": "",
+      "id": "c2-ghs-frequency",
+      "title": "Challenge 2: GHS Frequency",
+      "description": "[SCENARIO] A field agent sent back this standard photograph of GHS before their communications were heavily jammed. While the image looks completely normal on the surface, our scanners are picking up a massive data anomaly trailing at the very end of the file's binary structure. Extract the payload and decode the secure message. Be warned: the target's transmission is not meant for your ears.",
+      "file_name": "stego_challenge (1).jpeg",
+      "file_path": "/challenges/media/stego_challenge (1).jpeg",
+      "media_type": "image",
+      "media_url": "/challenges/media/stego_challenge (1).jpeg",
       "hints": [
-        "Since the array is sorted, set one marker (a pointer) at the first element (index 0) and the second marker at the last element (index length - 1).",
-        "At each step, you only need to calculate the sum of the elements at your two markers and compare it to T. If the sum is less than T, you must increase the sum, so move the low pointer one step inward. If the sum is greater than T, you must decrease the sum, so move the high pointer one step inward.",
-        "Your entire solution can be contained within a simple while loop that continues as long as your low pointer is less than your high pointer."
+        "Check the end of file (EOF) or file appending data.",
+        "Look for an embedded audio stream or sound spectrum hidden within."
       ],
-      "category": "Programming",
-      "difficulty": "Beginner"
+      "category": "Stego",
+      "difficulty": "Hard",
+      "points": 300
     },
     {
-      "id": "q3",
-      "title": "The Security Key Reverser",
-      "description": "You have recovered a C program designed to validate a 10-character security key. Due to poor programming practices, the key must pass through a two-step obfuscation process before it is checked against a hardcoded secret. To find the correct final flag, you must meticulously trace the logic of the processkey function.",
-      "file_name": "security.c",
-      "file_path": "/challenges/q3/security.c",
+      "id": "c3-structural-trace",
+      "title": "Challenge 3: Structural Trace",
+      "description": "[SCENARIO] A suspicious video file was recovered from a compromised terminal in the administrative wing. The visual footage seems completely harmless, but the file size doesn't quite add up. The attacker was careless and left a structural trace behind in the file's properties. Analyze the video's fingerprint to find the key, then dissect the file itself to pull out the hidden anomaly. Secure the flag before the data is lost.",
+      "file_name": "stego_challenge4.mp4",
+      "file_path": "/challenges/media/stego_challenge4.mp4",
+      "media_type": "video",
+      "media_url": "/challenges/media/stego_challenge4.mp4",
       "hints": [
-        "Swap the two halves — The key is split (A1B2C and 3D4E5) and exchanged.",
-        "Reverse the new first half in place — after swapping, reverse indices 0 through 4.",
-        "The flag is the final state of the key array after processing."
+        "Check metadata and video tags for hidden passwords or hashes.",
+        "Carve out embedded zip or appended binary chunks from the mp4."
       ],
-      "category": "Programming",
-      "difficulty": "Intermediate"
+      "category": "Forensics",
+      "difficulty": "Advanced",
+      "points": 250
     },
     {
-      "id": "q4",
-      "title": "Invisible Ink Scenario",
-      "description": "You have recovered a text file, secretnote.txt, which appears to contain nothing more than a simple, innocuous sentence. When you copy and paste the text, it seems normal, but a forensic tool confirms the file size is slightly larger than expected for the visible characters. Hidden zero-width Unicode characters encode the flag.",
-      "file_name": "secretnote.txt",
-      "file_path": "/challenges/q4/secretnote.txt",
+      "id": "c4-crests-secret",
+      "title": "Challenge 4: The Crest's Secret",
+      "description": "[SCENARIO] Our college club recently distributed this official logo, but rumors are circulating that the executive committee hid a secret initiation code inside the file. At first glance, it looks like a standard high-quality crest. Basic forensics will give you a breadcrumb, but don't be fooled—it's a trap for amateurs. You will need to dig much deeper into the image to extract the true message. Can you bypass the lock and secure the flag?",
+      "file_name": "stego_challenge3.jpeg",
+      "file_path": "/challenges/media/stego_challenge3.jpeg",
+      "media_type": "image",
+      "media_url": "/challenges/media/stego_challenge3.jpeg",
       "hints": [
-        "Zero-width characters (U200B, U200D) represent binary digits and encode ASCII via invisible text.",
-        "Use a specialized tool to extract and translate the invisible Unicode sequence.",
-        "Correct mapping from invisible characters to binary unlocks the true ASCII flag."
+        "Don't stop at exiftool strings; examine hidden payloads inside.",
+        "Check steghide or password protected archives within."
       ],
-      "category": "Steganography",
-      "difficulty": "Advanced"
+      "category": "Forensics",
+      "difficulty": "Medium",
+      "points": 200
     },
     {
-      "id": "q5",
-      "title": "The Final Register Readout",
-      "description": "You are a penetration tester attempting to recover a sensitive 6-character access key stored in a proprietary system. You have managed to dump the raw memory register, but the developer didn't use standard decimal numbers. Instead, they used a custom 'Quinary System' encoding where all values are calculated using powers of five before being stored. The captured, encoded register value (in the Quinary System) is the following sequence of three-digit numbers separated by colons: (313 : 310 : 314 : 421 : 322 : 310)",
-      "file_name": "",
-      "file_path": "",
+      "id": "c5-corrupted-drive",
+      "title": "Challenge 5: Corrupted Drive",
+      "description": "[SCENARIO] A ransomware attack hit the clinic's local drive. We stopped the encryption process and managed to intercept the attacker's extraction password: infected2026. However, this critical data file was partially corrupted during the attack, and the operating system doesn't recognize the file type anymore. Repair the file's header, restore it to its original format, and use the intercepted password to recover the flag inside.",
+      "file_name": "corrupted_patient_records.dat",
+      "file_path": "/challenges/media/corrupted_patient_records.dat",
+      "media_type": "file",
+      "media_url": "/challenges/media/corrupted_patient_records.dat",
       "hints": [
-        "Each three-digit number represents a character in the ASCII range",
-        "Convert each quinary number to decimal using powers of 5",
-        "Map the resulting decimal values to ASCII characters"
+        "Open in a Hex Editor and inspect the first magic bytes.",
+        "Determine the target archive header (e.g. zip/rar/7z) and repair the signature.",
+        "Extract with the password: infected2026"
       ],
-      "category": "Cryptography",
-      "difficulty": "Advanced"
+      "category": "Misc",
+      "difficulty": "Advanced",
+      "points": 250
+    },
+    {
+      "id": "c6-pre-production-panic",
+      "title": "Challenge 6: Pre-Production Panic",
+      "description": "[SCENARIO] The Central Savings Agency (CSA) rushed the deployment of their new employee portal and accidentally exposed a live staging environment. It appears their development team hasn't connected the backend validation yet, relying entirely on exposed local browser scripts to secure the corporate dashboard. We have intercepted the link to their staging login page. Your objective is to analyze the portal's source code, bypass the flawed authentication token check, and recover the hidden agency flag.",
+      "file_name": "Portal Link",
+      "file_path": "https://savingsbank-neon.vercel.app/",
+      "media_type": "link",
+      "media_url": "https://savingsbank-neon.vercel.app/",
+      "hints": [
+        "Open DevTools (F12) -> Sources or inspect the client-side JavaScript.",
+        "Look at how tokens and login conditions are validated in the frontend code."
+      ],
+      "category": "Web Exploitation",
+      "difficulty": "Beginner",
+      "points": 150
     }
   ]
 }
