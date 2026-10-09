@@ -39,8 +39,10 @@ interface Question {
   hints: string[];
   category: string;
   difficulty: string;
-  media_type?: 'image' | 'video' | 'file' | 'link';
+  points?: number;
+  media_type?: 'image' | 'video' | 'audio' | 'file' | 'link';
   media_url?: string;
+  audio_files?: { name: string; url: string }[];
 }
 
 const SAMPLE_QUESTIONS: Question[] = [];
@@ -1060,6 +1062,29 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
                       <source src={question.media_url} type="video/mp4" />
                       Your browser does not support HTML5 video.
                     </video>
+                  </div>
+                )}
+
+                {/* Audio Players (for Q3 Broken Broadcast radio pieces) */}
+                {(question.media_type === 'audio' || (question.audio_files && question.audio_files.length > 0)) && (
+                  <div className="p-4 bg-black/60 border border-green-500/30 rounded space-y-3">
+                    <div className="flex items-center gap-2 text-green-400 text-xs font-bold uppercase tracking-wider mb-2">
+                      <Radio className="w-4 h-4 text-green-400 animate-pulse" />
+                      BROADCAST RECEIVER CHANNELS (LISTEN & ANALYZE)
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {(question.audio_files || [{ name: question.file_name, url: question.media_url || question.file_path }]).map((audio, i) => (
+                        <div key={i} className="p-3 bg-black/80 border border-green-500/20 rounded">
+                          <p className="text-xs font-mono text-green-300 font-bold mb-1.5 flex items-center justify-between">
+                            <span>📡 {audio.name}</span>
+                          </p>
+                          <audio controls className="w-full h-8 accent-green-500">
+                            <source src={audio.url} type="audio/wav" />
+                            Your browser does not support HTML5 audio.
+                          </audio>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 

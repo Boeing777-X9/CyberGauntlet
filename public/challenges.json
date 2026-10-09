@@ -2,7 +2,7 @@
   "challenges": [
     {
       "id": "c1-dome-mirage",
-      "title": "Challenge 1: The Dome's Mirage",
+      "title": "The Dome's Mirage",
       "description": "[SCENARIO] We intercepted visual data feeds originating from the dome building at Manipal University Jaipur. The operative attempted to exfiltrate a secure routing code, but the transmission was split into identical-looking layers to avoid detection. Find the mathematical difference between the image feeds to reveal the hidden matrix.",
       "file_name": "stego_1 (1).png",
       "file_path": "/challenges/media/stego_1 (1).png",
@@ -18,7 +18,7 @@
     },
     {
       "id": "c2-ghs-frequency",
-      "title": "Challenge 2: GHS Frequency",
+      "title": "GHS Frequency",
       "description": "[SCENARIO] A field agent sent back this standard photograph of GHS before their communications were heavily jammed. While the image looks completely normal on the surface, our scanners are picking up a massive data anomaly trailing at the very end of the file's binary structure. Extract the payload and decode the secure message. Be warned: the target's transmission is not meant for your ears.",
       "file_name": "stego_challenge (1).jpeg",
       "file_path": "/challenges/media/stego_challenge (1).jpeg",
@@ -34,7 +34,7 @@
     },
     {
       "id": "c3-structural-trace",
-      "title": "Challenge 3: Structural Trace",
+      "title": "Structural Trace",
       "description": "[SCENARIO] A suspicious video file was recovered from a compromised terminal in the administrative wing. The visual footage seems completely harmless, but the file size doesn't quite add up. The attacker was careless and left a structural trace behind in the file's properties. Analyze the video's fingerprint to find the key, then dissect the file itself to pull out the hidden anomaly. Secure the flag before the data is lost.",
       "file_name": "stego_challenge4.mp4",
       "file_path": "/challenges/media/stego_challenge4.mp4",
@@ -45,12 +45,12 @@
         "Carve out embedded zip or appended binary chunks from the mp4."
       ],
       "category": "Forensics",
-      "difficulty": "Advanced",
+      "difficulty": "Hard",
       "points": 250
     },
     {
       "id": "c4-crests-secret",
-      "title": "Challenge 4: The Crest's Secret",
+      "title": "The Crest's Secret",
       "description": "[SCENARIO] Our college club recently distributed this official logo, but rumors are circulating that the executive committee hid a secret initiation code inside the file. At first glance, it looks like a standard high-quality crest. Basic forensics will give you a breadcrumb, but don't be fooled—it's a trap for amateurs. You will need to dig much deeper into the image to extract the true message. Can you bypass the lock and secure the flag?",
       "file_name": "stego_challenge3.jpeg",
       "file_path": "/challenges/media/stego_challenge3.jpeg",
@@ -66,7 +66,7 @@
     },
     {
       "id": "c5-corrupted-drive",
-      "title": "Challenge 5: Corrupted Drive",
+      "title": "Corrupted Drive",
       "description": "[SCENARIO] A ransomware attack hit the clinic's local drive. We stopped the encryption process and managed to intercept the attacker's extraction password: infected2026. However, this critical data file was partially corrupted during the attack, and the operating system doesn't recognize the file type anymore. Repair the file's header, restore it to its original format, and use the intercepted password to recover the flag inside.",
       "file_name": "corrupted_patient_records.dat",
       "file_path": "/challenges/media/corrupted_patient_records.dat",
@@ -74,16 +74,16 @@
       "media_url": "/challenges/media/corrupted_patient_records.dat",
       "hints": [
         "Open in a Hex Editor and inspect the first magic bytes.",
-        "Determine the target archive header (e.g. zip/rar/7z) and repair the signature.",
-        "Extract with the password: infected2026"
+        "Determine the target archive header and repair the signature.",
+        "Extract with password: infected2026"
       ],
       "category": "Misc",
-      "difficulty": "Advanced",
+      "difficulty": "Hard",
       "points": 250
     },
     {
       "id": "c6-pre-production-panic",
-      "title": "Challenge 6: Pre-Production Panic",
+      "title": "Pre-Production Panic",
       "description": "[SCENARIO] The Central Savings Agency (CSA) rushed the deployment of their new employee portal and accidentally exposed a live staging environment. It appears their development team hasn't connected the backend validation yet, relying entirely on exposed local browser scripts to secure the corporate dashboard. We have intercepted the link to their staging login page. Your objective is to analyze the portal's source code, bypass the flawed authentication token check, and recover the hidden agency flag.",
       "file_name": "Portal Link",
       "file_path": "https://savingsbank-neon.vercel.app/",
@@ -94,8 +94,110 @@
         "Look at how tokens and login conditions are validated in the frontend code."
       ],
       "category": "Web Exploitation",
-      "difficulty": "Beginner",
+      "difficulty": "Easy",
       "points": 150
+    },
+    {
+      "id": "q1-photograph-remembers",
+      "title": "The Photograph That Remembers",
+      "description": "An old photograph was recovered from a damaged storage device. At first glance, there is nothing unusual about it. It looks like an ordinary photograph from a quiet evening at a café. But someone went to great lengths to hide something inside it. The photograph remembers more than it shows. Can you uncover what it remembers and recover the hidden flag?",
+      "file_name": "photo.jpg",
+      "file_path": "/challenges/media/photo.jpg",
+      "media_type": "image",
+      "media_url": "/challenges/media/photo.jpg",
+      "hints": [
+        "A photograph can remember more than what it shows.",
+        "Examine embedded chunks, EXIF metadata, or appended file archives."
+      ],
+      "category": "Steganography",
+      "difficulty": "Medium",
+      "points": 400
+    },
+    {
+      "id": "q2-quiet-pixels",
+      "title": "Quiet Pixels",
+      "description": "A photograph was found on a seized laptop. It shows a famous landmark at dusk, and nothing in the file's details gives anything away. But the investigators believe the image is carrying more than it shows. Whoever hid it left a decoy for anyone who looked too quickly. Find what the photograph is hiding, and use it to build the flag.",
+      "file_name": "quiet.png",
+      "file_path": "/challenges/media/quiet.png",
+      "media_type": "image",
+      "media_url": "/challenges/media/quiet.png",
+      "hints": [
+        "Quick scans don't check everything.",
+        "Look beyond the obvious decoy — analyze color planes, LSB bitplanes, or trailing data."
+      ],
+      "category": "Steganography",
+      "difficulty": "Hard",
+      "points": 450
+    },
+    {
+      "id": "q3-broken-broadcast",
+      "title": "Broken Broadcast",
+      "description": "A pirate radio station went silent last night. Four receivers across the city each recorded the broadcast, but every one of them caught only a fragment. On their own, the recordings sound like little more than static and a stray melody. Together, they say something. Piece the broadcast together and recover the flag. Warning: the files contain high-pitched hiss. Keep your volume low.",
+      "file_name": "radio_pieces.zip",
+      "file_path": "/challenges/media/radio_pieces.zip",
+      "media_type": "audio",
+      "media_url": "/challenges/media/radio_pieces/piece_1.wav",
+      "audio_files": [
+        { "name": "Receiver Channel 1 (piece_1.wav)", "url": "/challenges/media/radio_pieces/piece_1.wav" },
+        { "name": "Receiver Channel 2 (piece_2.wav)", "url": "/challenges/media/radio_pieces/piece_2.wav" },
+        { "name": "Receiver Channel 3 (piece_3.wav)", "url": "/challenges/media/radio_pieces/piece_3.wav" },
+        { "name": "Receiver Channel 4 (piece_4.wav)", "url": "/challenges/media/radio_pieces/piece_4.wav" }
+      ],
+      "hints": [
+        "Alone I am only noise.",
+        "Overlay or subtract the stereo audio channels in Audacity or check the spectrogram."
+      ],
+      "category": "Audio Stego",
+      "difficulty": "Medium",
+      "points": 350
+    },
+    {
+      "id": "q4-snackbot-3000",
+      "title": "SnackBot 3000",
+      "description": "The campus vending machine, SnackBot 3000, has been handing out free snacks to someone all week. Security pulled its program off the machine for review. It only accepts one coupon code. Find out what it is.\n\nIncluded files: vending, maintenance_log.txt, run.sh\nExecution: bash run.sh",
+      "file_name": "snackbot3000.zip",
+      "file_path": "/challenges/media/snackbot3000.zip",
+      "media_type": "file",
+      "media_url": "/challenges/media/snackbot3000.zip",
+      "hints": [
+        "strings won't save you this time. Look at the logic.",
+        "Decompile the binary in Ghidra or trace with GDB/ltrace to see how the coupon input is verified."
+      ],
+      "category": "Reverse Engineering",
+      "difficulty": "Medium",
+      "points": 350
+    },
+    {
+      "id": "q5-invisible-ink",
+      "title": "Invisible Ink",
+      "description": "A recovered research report from Project LUMEN-4 was believed to be incomplete. The official records contain nothing unusual, but the final note left behind suggests otherwise:\n“Do not trust the parts that were written for you.”\n“Read the record again.”\n“There is information here that was never meant to be recorded.”\n“Look carefully.”\nA second file was recovered alongside the report, but it is password protected.\nCan you recover what was never meant to be recorded?",
+      "file_name": "lumen4_files.zip",
+      "file_path": "/challenges/media/lumen4_files.zip",
+      "media_type": "file",
+      "media_url": "/challenges/media/lumen4_files.zip",
+      "hints": [
+        "Look for zero-width unicode spaces or hidden text characters at the end of the report.",
+        "Use the decoded secret string to unlock the password-protected L4_recovery.zip archive."
+      ],
+      "category": "Cryptography",
+      "difficulty": "Medium",
+      "points": 350
+    },
+    {
+      "id": "q6-ghost-host",
+      "title": "Ghost Host",
+      "description": "A routine IT security memo was recovered during an internal audit. The memo appears ordinary, but one of its properties doesn't quite agree with what's visible on the page. Find what it's hiding. Then follow it as far as it goes.",
+      "file_name": "internal_it_memo.docx",
+      "file_path": "/challenges/media/internal_it_memo.docx",
+      "media_type": "file",
+      "media_url": "/challenges/media/internal_it_memo.docx",
+      "hints": [
+        "Word documents carry more than what's on the page.",
+        "Unzip the .docx file and inspect custom XML properties, core.xml, or document revision author tags."
+      ],
+      "category": "OSINT",
+      "difficulty": "Medium",
+      "points": 350
     }
   ]
 }
