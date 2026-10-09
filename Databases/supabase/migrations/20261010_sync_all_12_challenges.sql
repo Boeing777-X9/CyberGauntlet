@@ -29,7 +29,7 @@ INSERT INTO public.challenges (id, title, description, file_name, file_path, cor
   'stego_challenge (1).jpeg',
   '/challenges/media/stego_challenge (1).jpeg',
   'flag{stego2csc}',
-  ARRAY['Check the end of file (EOF) or file appending data.', 'Look for an embedded audio stream or sound spectrum hidden within.'],
+  ARRAY['The canvas ends, but the data lingers in the dark. Standard keys won''t turn this lock; try walking through its binary footprint or simply unpacking its excess weight.', 'You will uncover a voice, but it speaks only in static and chaos. Do not trust what your ears tell you—it is merely a disguise for the blind.', 'Frequencies carry more than just pitch and tone. Find a way to paint the soundwaves, and the invisible ink will finally materialize.'],
   'Steganography',
   'Hard',
   true
