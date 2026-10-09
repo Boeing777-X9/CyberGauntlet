@@ -73,16 +73,14 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [difficultyFilter, setDifficultyFilter] = useState('All');
 
-  // Category normalizer to merge all steganography variations
+  // Canonical 5 Categories: Steganography, OSINT, Cryptography, Forensics, Miscellaneous
   const normalizeCategory = (cat: string) => {
-    const lower = cat.toLowerCase();
-    if (lower.includes('stego')) return 'Steganography';
+    const lower = (cat || '').toLowerCase();
+    if (lower.includes('stego') || lower.includes('video') || lower.includes('audio')) return 'Steganography';
+    if (lower.includes('osint')) return 'OSINT';
     if (lower.includes('crypto')) return 'Cryptography';
     if (lower.includes('forensic')) return 'Forensics';
-    if (lower.includes('reverse')) return 'Reverse Engineering';
-    if (lower.includes('web')) return 'Web Exploitation';
-    if (lower.includes('osint')) return 'OSINT';
-    return cat;
+    return 'Miscellaneous';
   };
 
   // Fetch challenges from database or JSON file
@@ -94,11 +92,16 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
         if (response.ok) {
           const data = await response.json();
           // Strip correct_flag before storing — flag validation is server-side only
+          // No hints in Easy and Medium questions, only in Hard questions.
           const sanitized: Question[] = (data.challenges as any[]).map(
-            ({ correct_flag: _omit, ...rest }) => ({
-              ...rest,
-              category: normalizeCategory(rest.category || '')
-            }) as Question
+            ({ correct_flag: _omit, ...rest }) => {
+              const isHard = (rest.difficulty || '').toLowerCase() === 'hard';
+              return {
+                ...rest,
+                category: normalizeCategory(rest.category || ''),
+                hints: isHard ? (rest.hints || []) : []
+              } as Question;
+            }
           );
           setAvailableChallenges(sanitized);
 
@@ -141,13 +144,14 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
             const isVid = filePath.match(/\.(mp4|webm|mov)$/i);
             const isAudio = filePath.match(/\.(wav|mp3|ogg)$/i) || c.id.includes('broken-broadcast');
             const isLnk = filePath.startsWith('http');
+            const isHard = (c.difficulty || '').toLowerCase() === 'hard';
             return {
               id: c.id,
               title: c.title,
               description: c.description,
               file_name: c.file_name || '',
               file_path: filePath,
-              hints: c.hints || [],
+              hints: isHard ? (c.hints || []) : [],
               category: normalizeCategory(c.category || ''),
               difficulty: c.difficulty,
               media_type: c.media_type || (isImg ? 'image' : isVid ? 'video' : isAudio ? 'audio' : isLnk ? 'link' : 'file'),
@@ -250,7 +254,7 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
           hintsUsed: parsed.hintsUsed || 0
         };
         setElapsedTime(parsed.elapsedTime || 0);
-        setRevealedHints(parsed.revealedHints || [0]);
+        setRevealedHints(parsed.revealedHints || []);
       } else {
         let availableQuestions = availableChallenges.filter(q => !(completed ? JSON.parse(completed) : []).includes(q.id));
 
@@ -276,7 +280,7 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
         localStorage.setItem(`cybergauntlet_progress_${teamId}`, JSON.stringify({
           ...localChallenge,
           elapsedTime: 0,
-          revealedHints: [0]
+          revealedHints: []
         }));
 
         // ============ RECORD CHALLENGE SESSION START (ANTI-CHEAT) ============
@@ -380,7 +384,7 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
         p_team_name: teamName,
         p_time_spent: elapsedTime,
         p_attempts: newAttempts,
-        p_hints_used: challenge.hintsUsed || 0,
+        p_hints_used: 0, // No mark deduction for hints
         p_idempotency_key: idempotencyKey
       });
 
@@ -395,7 +399,7 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
             team_name: teamName,
             time_spent: elapsedTime,
             attempts: newAttempts,
-            hints_used: challenge.hintsUsed || 0,
+            hints_used: 0, // No mark deduction for hints
             start_time: new Date(challenge.startedAt).toISOString(),
             category: question.category,
             difficulty: question.difficulty,
@@ -484,43 +488,17 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
   };
 
   const revealNextHint = async () => {
-    if (!question || !challenge || !isSupabaseConfigured) return;
+    if (!question || !challenge) return;
 
     const nextHintIndex = revealedHints.length;
     if (nextHintIndex >= question.hints.length) return;
 
     try {
-      // Call the reveal-hint Edge Function for atomic point deduction
-      const { data, error } = await supabase.functions.invoke('reveal-hint', {
-        body: {
-          team_name: teamName
-        }
-      });
-
-      if (error) {
-        console.error('Reveal hint error:', error);
-        alert('Failed to reveal hint. Please try again.');
-        return;
-      }
-
-      // Check if the operation was successful
-      if (!data.success) {
-        if (data.reason === 'concurrent_modification') {
-          // Retry by reloading the challenge
-          await loadChallenge();
-          alert('Points were modified. Refreshed your points. Please try again.');
-        } else {
-          alert(data.error || 'Insufficient points to reveal hint.');
-        }
-        return;
-      }
-
-      // Update local state with the new points from the server
+      // Hints are free — no mark/point deductions
       const newRevealedHints = [...revealedHints, nextHintIndex];
       const newHintsUsed = (challenge.hintsUsed || 0) + 1;
 
-      // ============ RECORD HINT REVEAL (ANTI-CHEAT) ============
-      // Update server-side hint count for score validation
+      // Update server-side hint count for tracking without deducting points
       if (isSupabaseConfigured && question) {
         try {
           await supabase.rpc('record_hint_reveal', {
@@ -528,13 +506,10 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
             p_challenge_id: question.id
           });
         } catch (err) {
-          console.error('Error recording hint reveal:', err);
-          // Non-blocking - hint is still revealed locally
+          console.debug('Hint reveal recorded:', err);
         }
       }
 
-      // Update UI with the server-confirmed points
-      setPoints(data.new_points);
       setRevealedHints(newRevealedHints);
 
       const updatedChallenge = {
@@ -1047,24 +1022,36 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
                 <p className="text-green-300/80 leading-relaxed">{question?.description}</p>
               </div>
 
-              <div className="border-t border-green-500/20 pt-4">
-                <h3 className="text-green-400 mb-2">HINTS: ({revealedHints.length}/{question?.hints.length})</h3>
-                <ul className="space-y-1 text-green-300/60 ml-4 text-sm">
-                  {revealedHints.map((hintIndex) => (
-                    <li key={hintIndex}>→ {question?.hints[hintIndex]}</li>
-                  ))}
-                </ul>
-                {revealedHints.length < (question?.hints.length || 0) && (
-                  <button
-                    onClick={revealNextHint}
-                    disabled={points < 10}
-                    className="mt-3 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500 text-yellow-400 px-4 py-2 rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                  >
-                    UNLOCK NEXT HINT (10 points)
-                  </button>
-                )}
-                <p className="text-green-300/40 text-xs mt-2">Points: {points}</p>
-              </div>
+              {/* Only show HINTS section for Hard challenges - no hints in Easy and Medium */}
+              {question?.difficulty?.toLowerCase() === 'hard' && question?.hints && question.hints.length > 0 && (
+                <div className="border-t border-green-500/20 pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-green-400 font-semibold">HINTS ({revealedHints.length}/{question.hints.length}):</h3>
+                    <span className="text-xs text-yellow-400/90 bg-yellow-400/10 px-2.5 py-0.5 rounded border border-yellow-400/30 font-mono">
+                      No Marks Deducted
+                    </span>
+                  </div>
+                  {revealedHints.length === 0 ? (
+                    <p className="text-green-300/50 text-xs italic">No hints unlocked yet. Click below to reveal a hint without any penalty.</p>
+                  ) : (
+                    <ul className="space-y-2 text-green-300/80 text-sm">
+                      {revealedHints.map((hintIndex) => (
+                        <li key={hintIndex} className="bg-black/40 border border-green-500/20 p-2.5 rounded text-green-300">
+                          💡 <span className="text-yellow-300/90 font-medium">Hint {hintIndex + 1}:</span> {question.hints[hintIndex]}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {revealedHints.length < question.hints.length && (
+                    <button
+                      onClick={revealNextHint}
+                      className="mt-3 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500 text-yellow-400 px-4 py-2 rounded transition-all text-sm font-semibold flex items-center gap-2 cursor-pointer"
+                    >
+                      <span>🔓 UNLOCK NEXT HINT (Free)</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </TerminalBox>
 

@@ -56,11 +56,11 @@ interface Stats {
 }
 
 const EMPTY_FORM = {
-  id: '', title: '', description: '', category: 'Cryptography',
+  id: '', title: '', description: '', category: 'Steganography',
   difficulty: 'Beginner', correct_flag: '', file_name: '', file_path: '',
   hints: ['', '', ''],
 };
-const CATEGORIES = ['Cryptography','Programming','Steganography','Forensics','Web','Reverse Engineering','Misc'];
+const CATEGORIES = ['Steganography', 'OSINT', 'Cryptography', 'Forensics', 'Miscellaneous'];
 const DIFFICULTIES = ['Beginner','Intermediate','Advanced'];
 
 export default function AdminDashboard({ onLogout }: AdminDashboardProps) {

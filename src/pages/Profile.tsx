@@ -424,12 +424,11 @@ export default function Profile() {
                         className="w-full px-4 py-3 rounded-xl border border-zinc-700 bg-zinc-800/50 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
                       >
                         <option value="">Select category</option>
-                        <option value="Cryptography">Cryptography</option>
-                        <option value="Programming">Programming</option>
                         <option value="Steganography">Steganography</option>
-                        <option value="Web Security">Web Security</option>
+                        <option value="OSINT">OSINT</option>
+                        <option value="Cryptography">Cryptography</option>
                         <option value="Forensics">Forensics</option>
-                        <option value="Reverse Engineering">Reverse Engineering</option>
+                        <option value="Miscellaneous">Miscellaneous</option>
                       </select>
                     </div>
 
