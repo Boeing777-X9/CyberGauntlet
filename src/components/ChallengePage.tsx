@@ -361,7 +361,14 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
     e.preventDefault();
     if (!question || !challenge) return;
 
-    const submittedFlag = flag.trim();
+    // Normalize flag prefix (e.g. QUEST{...} -> quest{...}, FLAG{...} -> flag{...})
+    // Prefix is case-insensitive, while inner answer is strictly case-sensitive
+    let submittedFlag = flag.trim();
+    const prefixMatch = submittedFlag.match(/^([a-zA-Z0-9_-]+)\{(.*)\}$/);
+    if (prefixMatch) {
+      submittedFlag = `${prefixMatch[1].toLowerCase()}{${prefixMatch[2]}}`;
+    }
+
     const newAttempts = challenge.attempts + 1;
 
     try {
@@ -1151,14 +1158,21 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
               </div>
 
               <div>
-                <label className="block text-green-400 mb-2 text-sm">ENTER FLAG:</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-green-400 text-sm">ENTER FLAG:</label>
+                  {question?.id === 'c2-ghs-frequency' && (
+                    <span className="text-xs text-yellow-400/90 font-mono bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/30">
+                      Flag format : flag&#123;&#125;
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={flag}
                   onChange={(e) => setFlag(e.target.value)}
-                  placeholder="CG{...}"
+                  placeholder={question?.id === 'c2-ghs-frequency' ? 'flag{...}' : 'Enter flag here...'}
                   disabled={challenge?.completed}
-                  className="w-full bg-black/50 border border-green-500/30 rounded px-4 py-3 text-green-400 placeholder-green-700 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 disabled:opacity-50"
+                  className="w-full bg-black/50 border border-green-500/30 rounded px-4 py-3 text-green-400 placeholder-green-700 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 disabled:opacity-50 font-mono"
                   required
                 />
               </div>

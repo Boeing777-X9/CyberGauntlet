@@ -16,7 +16,7 @@
     {
       "id": "c2-ghs-frequency",
       "title": "GHS Frequency",
-      "description": "[SCENARIO] A field agent sent back this standard photograph of GHS before their communications were heavily jammed. While the image looks completely normal on the surface, our scanners are picking up a massive data anomaly trailing at the very end of the file's binary structure. Extract the payload and decode the secure message. Be warned: the target's transmission is not meant for your ears.",
+      "description": "[SCENARIO] A field agent sent back this standard photograph of GHS before their communications were heavily jammed. While the image looks completely normal on the surface, our scanners are picking up a massive data anomaly trailing at the very end of the file's binary structure. Extract the payload and decode the secure message. Be warned: the target's transmission is not meant for your ears.\n\nFlag format: flag{}",
       "file_name": "stego_challenge (1).jpeg",
       "file_path": "/challenges/media/stego_challenge (1).jpeg",
       "media_type": "image",
