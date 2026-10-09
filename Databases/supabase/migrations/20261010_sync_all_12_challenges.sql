@@ -1,14 +1,14 @@
 -- =============================================================================
--- ALL 12 CTF CHALLENGES, FLAGS & ADVANCED VERIFICATION RPC
+-- ALL 16 CTF CHALLENGES, OFFICIAL FLAGS & ADVANCED VERIFICATION RPC
 -- Run this in your Supabase SQL Editor:
 -- Dashboard -> SQL Editor -> New Query -> Paste & Run
 -- =============================================================================
 
--- Ensure pgcrypto is enabled for SHA-256 digesting
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 1. Insert/Update all 12 challenges with their official flags
--- Stored in public.challenges which is protected by RLS
+-- 1. Insert/Update all 16 challenges with their official flags
+-- Points rule: Easy = 100, Medium = 200, Hard = 300
+-- Hints rule: Hard challenges only; Easy and Medium have 0 hints.
 INSERT INTO public.challenges (id, title, description, file_name, file_path, correct_flag, hints, category, difficulty, is_active) VALUES
 (
   'c1-dome-mirage',
@@ -153,6 +153,54 @@ INSERT INTO public.challenges (id, title, description, file_name, file_path, cor
   'OSINT',
   'Medium',
   true
+),
+(
+  'q7-xor-caesar',
+  'XOR + Caesar Cipher',
+  'A message has been protected using two different cryptographic techniques.' || E'\n\n' || 'Solve Level 1 to uncover the message needed for Level 2.' || E'\n\n' || '---' || E'\n' || 'Level 1 — XOR' || E'\n\n' || 'You intercepted the following information:' || E'\n' || 'Known plaintext: HELLO' || E'\n' || 'Encrypted bytes: 03 00 15 07 0A' || E'\n\n' || 'The same repeating XOR key was used to encrypt another message.' || E'\n\n' || 'Task:' || E'\n' || '1. Find the XOR key.' || E'\n' || '2. Use the same key to decrypt: 12 0D 0C 07 12 1B' || E'\n' || '3. Convert the resulting bytes to ASCII.' || E'\n\n' || '---' || E'\n' || 'Level 2 — Caesar Cipher' || E'\n\n' || 'The message obtained from Level 1 is still encrypted.' || E'\n' || 'The shift is: 3' || E'\n\n' || 'Decrypt the message to obtain the final answer.' || E'\n' || 'NOTE: (USE UPPERCASE)',
+  '',
+  '',
+  'quest{VERITY}',
+  ARRAY[]::text[],
+  'Cryptography',
+  'Easy',
+  true
+),
+(
+  'q8-hidden-fingerprint',
+  'The Hidden Fingerprint',
+  'A cryptic message and a digital fingerprint were recovered during an investigation. The message may help you identify the word associated with the fingerprint, but only verification will confirm your answer.' || E'\n\n' || '---' || E'\n' || 'Level 1 — Atbash Cipher' || E'\n' || 'The intercepted ciphertext reads:' || E'\n' || 'GSV KZGS RH UREVW YB XLMERXGRLM, MLG YB ULIXV' || E'\n\n' || '---' || E'\n' || 'Level 2 — SHA-256 Verification' || E'\n' || 'The following SHA-256 hash was recovered:' || E'\n' || '191db9fb4e5aa8865ec8df9259c8d96ace565ed52cb69f43e1e57d395d054805' || E'\n\n' || 'Determine the original word associated with this hash.' || E'\n' || 'Use the clue from Level 1 to develop a plausible candidate, then calculate its SHA-256 hash and compare it with the recovered fingerprint. The hashes must match exactly.' || E'\n' || 'NOTE: (USE UPPERCASE)',
+  '',
+  '',
+  'quest{INEXORABLE}',
+  ARRAY['Sometimes, the alphabet reads backwards.', 'A fingerprint cannot tell its story on its own. Find the right candidate, then verify it.'],
+  'Cryptography',
+  'Hard',
+  true
+),
+(
+  'q9-ssh-log-investigation',
+  'SSH Log Investigation',
+  '[2026-09-30 03:11:42] sshd: Failed password for user admin from 172.16.4.21' || E'\n' || '[2026-09-30 03:12:08] sshd: Failed password for user admin from 172.16.4.21' || E'\n' || '[2026-09-30 03:12:31] sshd: Accepted password for user admin from 172.16.4.21' || E'\n\n' || '[2026-09-30 03:13:04] bash: cd /var/tmp' || E'\n' || '[2026-09-30 03:13:19] File created: /var/tmp/.cache_update' || E'\n' || '[2026-09-30 03:14:02] bash: cat /etc/passwd' || E'\n' || '[2026-09-30 03:15:17] File accessed: /home/admin/report.pdf' || E'\n\n' || '[2026-09-30 03:16:44] File modified: /var/tmp/.cache_update' || E'\n' || '[2026-09-30 03:17:03] bash: chmod +x /var/tmp/.cache_update' || E'\n' || '[2026-09-30 03:17:21] bash: /var/tmp/.cache_update' || E'\n\n' || '[2026-09-30 03:17:25] Network connection: 10.10.2.15 → 185.193.88.42:443' || E'\n' || '[2026-09-30 03:18:11] File created: /tmp/system.log' || E'\n' || '[2026-09-30 03:19:02] bash_history modified' || E'\n' || '[2026-09-30 03:21:47] SSH session closed' || E'\n\n' || 'Investigate the timeline and determine:' || E'\n' || '1. The IP address used to gain unauthorized access' || E'\n' || '2. The suspicious file that was made executable and subsequently executed' || E'\n' || '3. The exact time at which the suspicious file was executed' || E'\n\n' || 'Format your answer as: IP_FILENAME_TIME',
+  '',
+  '',
+  'quest{172.16.4.21_.cache_update_03:17:21}',
+  ARRAY[]::text[],
+  'Forensics',
+  'Easy',
+  true
+),
+(
+  'q10-instagram-x-mystery',
+  'Instagram to X Movie Mystery',
+  'Every digital footprint leaves a trail. The question is: can you follow it?' || E'\n\n' || 'You’ve been given an Instagram profile:' || E'\n' || 'https://www.instagram.com/anushka1262005?stkn=amZ3ZGdpODlpaDRp' || E'\n\n' || 'At first glance, it may seem like just another account—but somewhere within it is a breadcrumb leading you to a different platform.' || E'\n\n' || 'Your first objective: investigate the Instagram profile and uncover an X (formerly Twitter) username, in the format @something.' || E'\n' || 'Finding the username is only the beginning. Follow the trail to X. Look closely at what has been left behind—the posts may not tell you the answer directly, but they contain everything you need to uncover it.' || E'\n\n' || 'Piece the clues together and identify the mystery movie hiding at the end of the trail.' || E'\n' || 'NOTE: (USE UPPERCASE)',
+  'Target Instagram Profile',
+  'https://www.instagram.com/anushka1262005?stkn=amZ3ZGdpODlpaDRp',
+  'quest{DRISHYAM}',
+  ARRAY[]::text[],
+  'OSINT',
+  'Medium',
+  true
 )
 ON CONFLICT (id) DO UPDATE SET
   title = EXCLUDED.title,
@@ -172,7 +220,6 @@ CREATE TABLE IF NOT EXISTS public.challenge_validations (
   created_at timestamptz DEFAULT now()
 );
 
--- Safely add updated_at column if missing
 ALTER TABLE public.challenge_validations ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
 
 ALTER TABLE public.challenge_validations ENABLE ROW LEVEL SECURITY;
@@ -189,11 +236,9 @@ ON CONFLICT (challenge_id) DO UPDATE SET
   correct_flag_hash = EXCLUDED.correct_flag_hash;
 
 -- 3. Advanced submit_flag RPC Function
--- Handles:
--- - Case-insensitive prefix (quest{...}, QUEST{...}, flag{...}, FLAG{...})
--- - Strictly case-sensitive inner content
--- - Zero mark deductions for hints
--- - Live session attempt tracking & instant leaderboard update
+-- Supports case-insensitive prefix (quest{...}, QUEST{...}, flag{...}, FLAG{...})
+-- with strictly case-sensitive inner content
+-- Rewards: Easy=100, Medium=200, Hard=300
 CREATE OR REPLACE FUNCTION public.submit_flag(
   p_challenge_id text,
   p_submitted_flag text,
@@ -231,7 +276,7 @@ BEGIN
   END IF;
 
   -- 2. Case-insensitive prefix normalization:
-  -- lower(prefix) + case-sensitive inner content
+  -- lower(prefix) + strictly case-sensitive inner content
   IF NOT v_is_correct AND v_submitted_trimmed ~ '^[a-zA-Z0-9_-]+\{.*\}$' THEN
     v_prefix := lower(substring(v_submitted_trimmed from '^([a-zA-Z0-9_-]+)\{'));
     v_inner := substring(v_submitted_trimmed from '^[a-zA-Z0-9_-]+\{(.*)\}$');
@@ -242,11 +287,10 @@ BEGIN
       v_is_correct := true;
     END IF;
 
-    -- Also check alternate prefix quest{inner} / CSC{inner} if applicable
+    -- Also check alternate prefix quest{inner} / flag{inner} if applicable
     IF NOT v_is_correct THEN
       IF encode(digest('quest{' || v_inner || '}', 'sha256'), 'hex') = v_stored_hash OR
-         encode(digest('flag{' || v_inner || '}', 'sha256'), 'hex') = v_stored_hash OR
-         encode(digest('CSC{' || v_inner || '}', 'sha256'), 'hex') = v_stored_hash THEN
+         encode(digest('flag{' || v_inner || '}', 'sha256'), 'hex') = v_stored_hash THEN
         v_is_correct := true;
       END IF;
     END IF;
@@ -263,7 +307,7 @@ BEGIN
     RETURN jsonb_build_object('is_correct', false);
   END IF;
 
-  -- Handle Correct: Determine points
+  -- Handle Correct: Standardized Points: Easy=100, Medium=200, Hard=300
   SELECT * INTO v_challenge FROM public.challenges WHERE id = p_challenge_id;
   IF v_challenge.difficulty = 'Medium' OR v_challenge.difficulty = 'Intermediate' THEN
     v_points := 200;

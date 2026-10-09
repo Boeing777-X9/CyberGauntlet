@@ -11,7 +11,7 @@
       "hints": [],
       "category": "Steganography",
       "difficulty": "Medium",
-      "points": 150
+      "points": 200
     },
     {
       "id": "c2-ghs-frequency",
@@ -43,7 +43,7 @@
       ],
       "category": "Steganography",
       "difficulty": "Hard",
-      "points": 250
+      "points": 300
     },
     {
       "id": "c4-crests-secret",
@@ -73,7 +73,7 @@
       ],
       "category": "Miscellaneous",
       "difficulty": "Hard",
-      "points": 250
+      "points": 300
     },
     {
       "id": "c6-pre-production-panic",
@@ -86,7 +86,7 @@
       "hints": [],
       "category": "Miscellaneous",
       "difficulty": "Easy",
-      "points": 150
+      "points": 100
     },
     {
       "id": "q1-photograph-remembers",
@@ -99,7 +99,7 @@
       "hints": [],
       "category": "Steganography",
       "difficulty": "Medium",
-      "points": 400
+      "points": 200
     },
     {
       "id": "q2-quiet-pixels",
@@ -115,7 +115,7 @@
       ],
       "category": "Steganography",
       "difficulty": "Hard",
-      "points": 450
+      "points": 300
     },
     {
       "id": "q3-broken-broadcast",
@@ -134,7 +134,7 @@
       "hints": [],
       "category": "Steganography",
       "difficulty": "Medium",
-      "points": 350
+      "points": 200
     },
     {
       "id": "q4-snackbot-3000",
@@ -147,7 +147,7 @@
       "hints": [],
       "category": "Miscellaneous",
       "difficulty": "Medium",
-      "points": 350
+      "points": 200
     },
     {
       "id": "q5-invisible-ink",
@@ -160,7 +160,7 @@
       "hints": [],
       "category": "Cryptography",
       "difficulty": "Medium",
-      "points": 350
+      "points": 200
     },
     {
       "id": "q6-ghost-host",
@@ -173,7 +173,59 @@
       "hints": [],
       "category": "OSINT",
       "difficulty": "Medium",
-      "points": 350
+      "points": 200
+    },
+    {
+      "id": "q7-xor-caesar",
+      "title": "XOR + Caesar Cipher",
+      "description": "A message has been protected using two different cryptographic techniques.\n\nSolve Level 1 to uncover the message needed for Level 2.\n\n---\nLevel 1 — XOR\n\nYou intercepted the following information:\nKnown plaintext: HELLO\nEncrypted bytes: 03 00 15 07 0A\n\nThe same repeating XOR key was used to encrypt another message.\n\nTask:\n1. Find the XOR key.\n2. Use the same key to decrypt: 12 0D 0C 07 12 1B\n3. Convert the resulting bytes to ASCII.\n\n---\nLevel 2 — Caesar Cipher\n\nThe message obtained from Level 1 is still encrypted.\nThe shift is: 3\n\nDecrypt the message to obtain the final answer.\nNOTE: (USE UPPERCASE)",
+      "file_name": "",
+      "file_path": "",
+      "media_type": "file",
+      "hints": [],
+      "category": "Cryptography",
+      "difficulty": "Easy",
+      "points": 100
+    },
+    {
+      "id": "q8-hidden-fingerprint",
+      "title": "The Hidden Fingerprint",
+      "description": "A cryptic message and a digital fingerprint were recovered during an investigation. The message may help you identify the word associated with the fingerprint, but only verification will confirm your answer.\n\n---\nLevel 1 — Atbash Cipher\nThe intercepted ciphertext reads:\nGSV KZGS RH UREVW YB XLMERXGRLM, MLG YB ULIXV\n\n---\nLevel 2 — SHA-256 Verification\nThe following SHA-256 hash was recovered:\n191db9fb4e5aa8865ec8df9259c8d96ace565ed52cb69f43e1e57d395d054805\n\nDetermine the original word associated with this hash.\nUse the clue from Level 1 to develop a plausible candidate, then calculate its SHA-256 hash and compare it with the recovered fingerprint. The hashes must match exactly.\nNOTE: (USE UPPERCASE)",
+      "file_name": "",
+      "file_path": "",
+      "media_type": "file",
+      "hints": [
+        "Sometimes, the alphabet reads backwards.",
+        "A fingerprint cannot tell its story on its own. Find the right candidate, then verify it."
+      ],
+      "category": "Cryptography",
+      "difficulty": "Hard",
+      "points": 300
+    },
+    {
+      "id": "q9-ssh-log-investigation",
+      "title": "SSH Log Investigation",
+      "description": "[2026-09-30 03:11:42] sshd: Failed password for user admin from 172.16.4.21\n[2026-09-30 03:12:08] sshd: Failed password for user admin from 172.16.4.21\n[2026-09-30 03:12:31] sshd: Accepted password for user admin from 172.16.4.21\n\n[2026-09-30 03:13:04] bash: cd /var/tmp\n[2026-09-30 03:13:19] File created: /var/tmp/.cache_update\n[2026-09-30 03:14:02] bash: cat /etc/passwd\n[2026-09-30 03:15:17] File accessed: /home/admin/report.pdf\n\n[2026-09-30 03:16:44] File modified: /var/tmp/.cache_update\n[2026-09-30 03:17:03] bash: chmod +x /var/tmp/.cache_update\n[2026-09-30 03:17:21] bash: /var/tmp/.cache_update\n\n[2026-09-30 03:17:25] Network connection: 10.10.2.15 → 185.193.88.42:443\n[2026-09-30 03:18:11] File created: /tmp/system.log\n[2026-09-30 03:19:02] bash_history modified\n[2026-09-30 03:21:47] SSH session closed\n\nInvestigate the timeline and determine:\n1. The IP address used to gain unauthorized access\n2. The suspicious file that was made executable and subsequently executed\n3. The exact time at which the suspicious file was executed\n\nFormat your answer as: IP_FILENAME_TIME",
+      "file_name": "",
+      "file_path": "",
+      "media_type": "file",
+      "hints": [],
+      "category": "Forensics",
+      "difficulty": "Easy",
+      "points": 100
+    },
+    {
+      "id": "q10-instagram-x-mystery",
+      "title": "Instagram to X Movie Mystery",
+      "description": "Every digital footprint leaves a trail. The question is: can you follow it?\n\nYou’ve been given an Instagram profile:\nhttps://www.instagram.com/anushka1262005?stkn=amZ3ZGdpODlpaDRp\n\nAt first glance, it may seem like just another account—but somewhere within it is a breadcrumb leading you to a different platform.\n\nYour first objective: investigate the Instagram profile and uncover an X (formerly Twitter) username, in the format @something.\nFinding the username is only the beginning. Follow the trail to X. Look closely at what has been left behind—the posts may not tell you the answer directly, but they contain everything you need to uncover it.\n\nPiece the clues together and identify the mystery movie hiding at the end of the trail.\nNOTE: (USE UPPERCASE)",
+      "file_name": "Target Instagram Profile",
+      "file_path": "https://www.instagram.com/anushka1262005?stkn=amZ3ZGdpODlpaDRp",
+      "media_type": "link",
+      "media_url": "https://www.instagram.com/anushka1262005?stkn=amZ3ZGdpODlpaDRp",
+      "hints": [],
+      "category": "OSINT",
+      "difficulty": "Medium",
+      "points": 200
     }
   ]
 }
