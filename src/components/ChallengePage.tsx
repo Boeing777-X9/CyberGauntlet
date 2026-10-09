@@ -59,7 +59,7 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
   const [completedQuestions, setCompletedQuestions] = useState<string[]>([]);
   const [showProgressDetails, setShowProgressDetails] = useState(false);
   const [points, setPoints] = useState(100);
-  const [revealedHints, setRevealedHints] = useState<number[]>([0]); // First hint always revealed
+  const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [currentEvent, setCurrentEvent] = useState<Event | null>(null);
   const [availableChallenges, setAvailableChallenges] = useState<Question[]>(SAMPLE_QUESTIONS); // Initialize with hardcoded, then fetch from DB
 
@@ -1026,7 +1026,43 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
                   </span>
                 </div>
                 <h2 className="text-2xl text-green-400 mb-2">{question?.title}</h2>
-                <p className="text-green-300/80 leading-relaxed">{question?.description}</p>
+                <p className="text-green-300/80 leading-relaxed whitespace-pre-line">{question?.description}</p>
+
+                {/* Broadcast Receiver Audio Channels (for Q3 Broken Broadcast) */}
+                {(question?.media_type === 'audio' || (question?.audio_files && question.audio_files.length > 0) || question?.id?.includes('broken-broadcast') || question?.id === 'q3-broken-broadcast') && (
+                  <div className="mt-4 p-4 bg-black/80 border border-green-500/40 rounded-lg shadow-[0_0_20px_rgba(34,197,94,0.15)] space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-green-500/20">
+                      <div className="flex items-center gap-2 text-green-400 text-xs font-bold uppercase tracking-wider">
+                        <Radio className="w-4 h-4 text-green-400 animate-pulse" />
+                        <span>BROADCAST RECEIVER CHANNELS (LISTEN & ANALYZE)</span>
+                      </div>
+                      <span className="text-[10px] text-yellow-400/90 bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/30 font-mono">
+                        4 Radio Pieces
+                      </span>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {(question?.audio_files && question.audio_files.length > 0
+                        ? question.audio_files
+                        : [
+                            { name: 'Receiver Channel 1 (piece_1.wav)', url: '/challenges/media/radio_pieces/piece_1.wav' },
+                            { name: 'Receiver Channel 2 (piece_2.wav)', url: '/challenges/media/radio_pieces/piece_2.wav' },
+                            { name: 'Receiver Channel 3 (piece_3.wav)', url: '/challenges/media/radio_pieces/piece_3.wav' },
+                            { name: 'Receiver Channel 4 (piece_4.wav)', url: '/challenges/media/radio_pieces/piece_4.wav' }
+                          ]
+                      ).map((audio, i) => (
+                        <div key={i} className="p-3 bg-zinc-950/90 border border-green-500/30 rounded-md hover:border-green-400/80 transition-colors">
+                          <p className="text-xs font-mono text-green-300 font-bold mb-2 flex items-center justify-between">
+                            <span>📡 {audio.name}</span>
+                          </p>
+                          <audio controls preload="auto" className="w-full h-8 accent-green-500">
+                            <source src={audio.url} type="audio/wav" />
+                            Your browser does not support HTML5 audio.
+                          </audio>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Only show HINTS section for Hard challenges - no hints in Easy and Medium */}
