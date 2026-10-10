@@ -136,6 +136,8 @@ export default function Login() {
       if (error) {
         if (error.message.includes('Anonymous sign-ins')) {
           alert('Authentication service not properly configured. Please contact support.');
+        } else if (error.message.includes('Failed to fetch')) {
+          alert('NETWORK ERROR: Unable to reach authentication server. Please check your internet connection, pause Tailscale/VPN or ad-blockers, and try again.');
         } else {
           alert(error.message);
         }
@@ -158,8 +160,12 @@ export default function Login() {
       }
 
       navigate("/challenges", { replace: true });
-    } catch (err) {
-      alert('An unexpected error occurred during login');
+    } catch (err: any) {
+      if (err?.message?.includes('Failed to fetch')) {
+        alert('NETWORK ERROR: Unable to reach authentication server. Please check your internet connection, pause Tailscale/VPN or ad-blockers, and try again.');
+      } else {
+        alert('An unexpected error occurred during login: ' + (err?.message || ''));
+      }
       console.error(err);
     } finally {
       setLoading(false);
@@ -174,7 +180,7 @@ export default function Login() {
     setLoading(true);
     try {
       const { error } = await supabase.auth.signUp({
-        email,
+        email: email.trim().toLowerCase(),
         password,
       });
       if (error) {
@@ -182,14 +188,20 @@ export default function Login() {
           alert('ACCESS DENIED: Your email is not registered among Round 1 qualifiers.');
         } else if (error.message.includes('Anonymous sign-ins')) {
           alert('Authentication service not properly configured. Please contact support.');
+        } else if (error.message.includes('Failed to fetch')) {
+          alert('NETWORK ERROR: Unable to reach authentication server. Please check your internet connection, pause Tailscale/VPN or ad-blockers, and try again.');
         } else {
           alert(error.message);
         }
       } else {
         alert('Registration successful! You may now initiate your session.');
       }
-    } catch (err) {
-      alert('An unexpected error occurred during signup');
+    } catch (err: any) {
+      if (err?.message?.includes('Failed to fetch')) {
+        alert('NETWORK ERROR: Unable to reach authentication server. Please check your internet connection, pause Tailscale/VPN or ad-blockers, and try again.');
+      } else {
+        alert('An unexpected error occurred during signup: ' + (err?.message || ''));
+      }
       console.error(err);
     } finally {
       setLoading(false);
