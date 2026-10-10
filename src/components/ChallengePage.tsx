@@ -297,9 +297,27 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
   const [difficultyFilter, setDifficultyFilter] = useState('All');
 
   // Canonical 5 Categories: Steganography, OSINT, Cryptography, Forensics, Miscellaneous
-  const normalizeCategory = (cat: string) => {
+  const normalizeCategory = (cat: string, id?: string) => {
+    // 1. Explicit canonical mapping by question ID ensures 100% domain accuracy
+    if (id === 'c2-ghs-frequency' || id === 'q1-photograph-remembers' || id === 'c4-crests-secret' || id === 'q9-ssh-log-investigation') {
+      return 'Forensics';
+    }
+    if (id === 'q2-quiet-pixels' || id === 'q3-broken-broadcast' || id === 'q5-invisible-ink' || id === 'c1-dome-mirage' || id === 'c3-structural-trace') {
+      return 'Steganography';
+    }
+    if (id === 'q6-ghost-host' || id === 'q10-instagram-x-mystery') {
+      return 'OSINT';
+    }
+    if (id === 'q7-xor-caesar' || id === 'q8-hidden-fingerprint') {
+      return 'Cryptography';
+    }
+    if (id === 'q4-snackbot-3000' || id === 'c5-corrupted-drive' || id === 'c6-pre-production-panic') {
+      return 'Miscellaneous';
+    }
+
+    // 2. Keyword fallback
     const lower = (cat || '').toLowerCase();
-    if (lower.includes('stego') || lower.includes('video') || lower.includes('audio')) return 'Steganography';
+    if (lower.includes('stego') || lower.includes('video') || lower.includes('audio') || lower.includes('pixel')) return 'Steganography';
     if (lower.includes('osint')) return 'OSINT';
     if (lower.includes('crypto')) return 'Cryptography';
     if (lower.includes('forensic')) return 'Forensics';
@@ -321,7 +339,7 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
               const isHard = (rest.difficulty || '').toLowerCase() === 'hard';
               return {
                 ...rest,
-                category: normalizeCategory(rest.category || ''),
+                category: normalizeCategory(rest.category || '', rest.id),
                 hints: isHard ? (rest.hints || []) : []
               } as Question;
             }
@@ -375,7 +393,7 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
               file_name: c.file_name || '',
               file_path: filePath,
               hints: isHard ? (c.hints || []) : [],
-              category: normalizeCategory(c.category || ''),
+              category: normalizeCategory(c.category || '', c.id),
               difficulty: c.difficulty,
               media_type: c.media_type || (isImg ? 'image' : isVid ? 'video' : isAudio ? 'audio' : isLnk ? 'link' : 'file'),
               media_url: c.media_url || filePath,
