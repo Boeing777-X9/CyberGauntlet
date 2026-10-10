@@ -615,6 +615,9 @@ export function ChallengePage({ teamId, teamName, leaderName, onLogout }: Challe
     // Normalize flag prefix (e.g. QUEST{...} -> quest{...}, FLAG{...} -> flag{...})
     // Prefix is case-insensitive, while inner answer is strictly case-sensitive
     let submittedFlag = flag.trim();
+    if (submittedFlag.includes('{') && submittedFlag.endsWith(')')) {
+      submittedFlag = submittedFlag.slice(0, -1) + '}';
+    }
     const prefixMatch = submittedFlag.match(/^([a-zA-Z0-9_-]+)\{(.*)\}$/);
     if (prefixMatch) {
       submittedFlag = `${prefixMatch[1].toLowerCase()}{${prefixMatch[2]}}`;

@@ -26,7 +26,7 @@
         "You will uncover a voice, but it speaks only in static and chaos. Do not trust what your ears tell you—it is merely a disguise for the blind.",
         "Frequencies carry more than just pitch and tone. Find a way to paint the soundwaves, and the invisible ink will finally materialize."
       ],
-      "category": "Steganography",
+      "category": "Forensics",
       "difficulty": "Hard",
       "points": 300
     },
@@ -98,7 +98,7 @@
       "media_type": "image",
       "media_url": "/challenges/media/photo.jpg",
       "hints": [],
-      "category": "Steganography",
+      "category": "Forensics",
       "difficulty": "Medium",
       "points": 200
     },
@@ -159,7 +159,7 @@
       "media_type": "file",
       "media_url": "/challenges/media/lumen4_files.zip",
       "hints": [],
-      "category": "Cryptography",
+      "category": "Steganography",
       "difficulty": "Medium",
       "points": 200
     },
